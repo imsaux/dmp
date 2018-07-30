@@ -17,7 +17,7 @@ ID_NEW_AXLE_CALIBRATION = 10
 
 
 class ImageView(wx.Panel):
-    def __init__(self, parent, file_path):
+    def __init__(self, parent, file_path=None):
         wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.CLIP_CHILDREN)
         self.background = wx.Brush(self.GetBackgroundColour())
         self.start_pos = None
@@ -39,7 +39,10 @@ class ImageView(wx.Panel):
         self.zoom_ratio = 0
         self.unit_ratio = 0.25
         self.show_pos = 0, 0
-        self.to_show = wx.Bitmap(file_path)
+        if file_path is not None:
+            self.to_show = wx.Bitmap(file_path)
+        else:
+            self.to_show = None
         self.draw_mode = ID_NONE
         view_object = [
             "车厢",
@@ -62,15 +65,15 @@ class ImageView(wx.Panel):
         #                          style=wx.CB_READONLY)
         # self.funcs.SetSelection(0)
         # self.funcs.SetToolTip('选择功能')
-        self.overlayPenWidth = wx.SpinCtrl(self, -1, value='',
-                                           size=(75, -1),
-                                           style=wx.SP_ARROW_KEYS,
-                                           min=1, max=24, initial=1)
-        self.overlayPenWidth.SetToolTip('线宽')
+        # self.overlayPenWidth = wx.SpinCtrl(self, -1, value='',
+        #                                    size=(75, -1),
+        #                                    style=wx.SP_ARROW_KEYS,
+        #                                    min=1, max=24, initial=1)
+        # self.overlayPenWidth.SetToolTip('线宽')
 
         sizer = wx.BoxSizer(wx.HORIZONTAL)
         sizer.Add(self.filter, 0, wx.ALL, 5)
-        sizer.Add(self.overlayPenWidth, 0, wx.ALL, 5)
+        # sizer.Add(self.overlayPenWidth, 0, wx.ALL, 5)
         box = wx.BoxSizer(wx.VERTICAL)
         box.Add(sizer, 0)
         box.Add((1, 1), 1)
@@ -241,7 +244,7 @@ class ImageView(wx.Panel):
 
                 dc = wx.GCDC(dc)
                 dc.SetPen(wx.Pen(colour=color,
-                                 width=self.overlayPenWidth.GetValue(),
+                                #  width=self.overlayPenWidth.GetValue(),
                                  style=style))
 
                 bc = wx.RED
@@ -250,7 +253,7 @@ class ImageView(wx.Panel):
             else:
                 dc = wx.GCDC(dc)
                 dc.SetPen(wx.Pen(colour=color,
-                                 width=self.overlayPenWidth.GetValue(),
+                                #  width=self.overlayPenWidth.GetValue(),
                                  style=style))
 
                 bc = wx.RED
@@ -264,7 +267,7 @@ class ImageView(wx.Panel):
 
     def draw_line(self, dc, p1, p2, id=ID_NONE, color=wx.RED, style=wx.PENSTYLE_SOLID):
         dc.SetPen(wx.Pen(colour=color,
-                         width=self.overlayPenWidth.GetValue(),
+                        #  width=self.overlayPenWidth.GetValue(),
                          style=style))
         x1, y1 = p1
         x2, y2 = p2

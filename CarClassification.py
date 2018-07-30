@@ -25,9 +25,9 @@ class CarClassification:
             # break
         if len(self.index_files.keys())>0:
             self.analysis_index()
+            self.rename()
         else:
             pass
-        self.rename()
 
     @property
     def IndexData(self):
@@ -54,25 +54,33 @@ class CarClassification:
                             self.index_datas[line][date][l[0]]["width"] = l[2]
                             self.index_datas[line][date][l[0]]["line"] = line
                             self.index_datas[line][date][l[0]]["date"] = date
-                            if l[3][0] == 'J' and l[3][:3] != 'JSQ':
-                                if ' D ' in l[3]: # 动车
+                            if l[3][0] == 'J':
+                                if ' D ' == l[3][12:15]: # 动车
                                     _is_D = True
                                 self.index_datas[line][date]["trainno"] = l[3][12:19]
                                 self.index_datas[line][date][l[0]]["carno"] = l[3][4:8]
                                 self.index_datas[line][date][l[0]]["kind"] = l[3][1:4]
-                                self.index_datas[line][date][l[0]]["type"] = 'J'
+                                self.index_datas[line][date][l[0]]["type"] = ''
+                                self.index_datas[line][date][l[0]]["property"] = 'J'
                             elif l[3][0] == 'K':
                                 self.index_datas[line][date][l[0]]["carno"] = l[3][6:13]
                                 self.index_datas[line][date][l[0]]["kind"] = l[3][4:6]
                                 self.index_datas[line][date][l[0]]["type"] = l[3][1:4]
+                                self.index_datas[line][date][l[0]]["property"] = l[3][0]
                             elif l[3].count('X') == 20:
                                 if _is_D:
-                                    self.index_datas[line][date][l[0]]["kind"] = "D"
+                                    self.index_datas[line][date][l[0]]["kind"] = ""
                                     self.index_datas[line][date][l[0]]["type"] = "D"
+                                    self.index_datas[line][date][l[0]]["property"] = "D"
+                                else:
+                                    self.index_datas[line][date][l[0]]["kind"] = "##"
+                                    self.index_datas[line][date][l[0]]["type"] = "##"
+                                    self.index_datas[line][date][l[0]]["property"] = "#"
                             else:
                                 self.index_datas[line][date][l[0]]["carno"] = l[3][7:14]
                                 self.index_datas[line][date][l[0]]["kind"] = l[3][2:7]
                                 self.index_datas[line][date][l[0]]["type"] = l[3][1]
+                                self.index_datas[line][date][l[0]]["property"] = l[3][0]
 
     def rename(self):
         for line in self.image_files.keys():
@@ -83,7 +91,7 @@ class CarClassification:
                         info = self.index_datas[line][date][no]
                         _new = os.path.dirname(img) + '\\' + '_'.join(
                             [
-                                info['type'] + info['kind'].strip(),
+                                info['property'] + info['type'] + info['kind'].strip(),
                                 info['line'],
                                 info['date'],
                                 os.path.basename(img)

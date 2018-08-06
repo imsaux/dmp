@@ -55,7 +55,7 @@ def _get_logger():
 	handler.setFormatter(formatter)
 
 	logger.addHandler(handler)
-	logger.setLevel(logging.INFO)
+	logger.setLevel(logging.DEBUG)
 
 	return logger
 
@@ -98,7 +98,7 @@ class MainFrame(wx.Frame):
 		self.db = None
 		self.cursor = None
 		self.db_column_info = None
-		self.last_data = None
+		self.last_data = list()
 		self.last_query_objects = set()
 		self.import_param = None
 		self.export_param = None
@@ -115,6 +115,7 @@ class MainFrame(wx.Frame):
 
 		self.read_setting()
 		self.db_connect()
+		self.get_table_info()
 
 		mb = wx.MenuBar()
 
@@ -189,7 +190,7 @@ class MainFrame(wx.Frame):
 							data.append(f.split('_')[-2][0])
 							data.append(f.split('_')[-3])
 							data.append(f.split('_')[-4])
-							data.append('无')
+							data.append(self.import_param['site'])
 							img_path = os.path.join(_root, f)
 							img = PIL.Image.open(img_path)
 							data.append(img.width)
@@ -201,9 +202,10 @@ class MainFrame(wx.Frame):
 							data.append(0)
 							data.append(0)
 							data.append(0)
+							data.append('晴')
 							data.append(0)
-							data.append(0)
-							data.append(0)
+							data.append(0) # todo 标定信息
+							data.append(0) # todo 车轴信息
 							data.append(0)
 							all_data.append(data)
 							index += 1
@@ -215,6 +217,7 @@ class MainFrame(wx.Frame):
 			index = 1
 			all_data = list()
 			for _root, _dir, _file in os.walk(self.import_param['label_dir'], topdown=False):
+				# todo 旧素材导入图像信息待完善
 				if self.import_param['label_type'] == '分割标签':
 					pass
 				elif self.import_param['label_type'] == '分类标签':
@@ -239,6 +242,7 @@ class MainFrame(wx.Frame):
 								data.append(float(self.import_param['image_scale']))
 								data.append('训练')
 								data.append('未标')
+								data.append(0)
 								data.append(0)
 								data.append(0)
 								data.append(0)
@@ -298,11 +302,37 @@ class MainFrame(wx.Frame):
 				self.server_ip = str(kd['server']['server_ip'])
 				self.server_port = int(kd['server']['server_port'])
 
-	def db_do_sql(self, sql, need_commit=False, is_save=False, update=False, need_clear=False):
+	def db_do_sql(self, sql, need_commit=False, update=False, need_last=False, need_clear=False, need_random=0):
 		self.cursor.execute(sql)
 		data = self.cursor.fetchall()
-		if is_save:
-			self.last_data = data
+		if len(data) == 0:
+			return []
+		try:
+			all = list()
+			if int(need_random) > 0:
+				import copy
+				import random
+				_data = list(copy.deepcopy(data))
+				while True:
+					if len(all) == int(need_random) or len(_data) == 0:
+						break
+					tmp = random.choice(_data)
+					if tmp not in self.last_data and tmp not in all:
+						all.append(tmp)
+					_data.remove(tmp)
+			else:
+				for tmp in data:
+					if len(self.last_data) > 0:
+						if tmp not in self.last_data:
+							all.append(tmp)
+					else:
+						all.append(tmp)
+			data = all
+			if need_last:
+				self.last_data = list(set(data) | set(self.last_data))
+		except Exception as e:
+			return []
+			self.log.info(repr(e))
 		if update:
 			self.data_view.set_data(data, need_clear)
 			self.statistics_panel.set_data(data, need_clear)
@@ -320,16 +350,18 @@ class MainFrame(wx.Frame):
 		self.data_view.set_data(self.last_data, need_clear=True)
 		self.statistics_panel.set_data(self.last_data, need_clear=True)
 
+	def get_table_info(self):
+		_sql = 'select * from information_schema.columns where table_schema = "' + self.db_name + '" and table_name = "image"'
+		data = self.db_do_sql(_sql)
+		self.db_column_info = {k[-3]: {'type': k[7], 'field': k[3]} for k in data}
+
 	def db_connect(self):
 		try:
 			self.db = pymysql.connect(self.db_ip, self.db_username, self.db_userpassword, self.db_name)
 			self.cursor = self.db.cursor()
-			_sql = 'select * from information_schema.columns where table_schema = "' + self.db_name + '" and table_name = "image"'
-			self.cursor.execute(_sql)
-			data = self.cursor.fetchall()
-			self.db_column_info = {k[-3]: {'type': k[7], 'field': k[3]} for k in data}
 		except Exception as e:
 			self.db = None
+			self.log.info(repr(e))
 
 	def load_other_ui(self):
 		# todo 创建界面布局方案
@@ -359,18 +391,18 @@ class MainFrame(wx.Frame):
 		self._mgr.AddPane(self.CreateStatisticsCtrl(), aui.AuiPaneInfo().
 		                  Name("统计").Caption("统计").MinSize(wx.Size(200, 150)).Bottom().Layer(0).Row(0).Position(
 			1).CloseButton(True).MaximizeButton(True))
-		self._mgr.AddPane(self.CreateQueryCtrl(), aui.AuiPaneInfo().Name("检索").CenterPane())
+		self._mgr.AddPane(self.CreateQueryCtrl(), aui.AuiPaneInfo().Name("检索").Caption('检索').MinSize(wx.Size(400,100)).Left().Layer(0).Row(0).Position(0).CloseButton(True))
 		self._mgr.AddPane(self.CreateImageCtrl(), aui.AuiPaneInfo().Name("图像").CenterPane().Hide())
 		self._mgr.Update()
 
 	def on_show_query_view(self, event=None):
 		self._mgr.GetPane("检索").Show()
-		self._mgr.GetPane("图像").Hide()
+		# self._mgr.GetPane("图像").Hide()
 		self._mgr.Update()
 
 	def on_show_image_view(self, event=None):
 		self._mgr.GetPane("图像").Show()
-		self._mgr.GetPane("检索").Hide()
+		# self._mgr.GetPane("检索").Hide()
 		self._mgr.Update()
 
 	def on_show_data_view(self, event=None):
@@ -453,8 +485,8 @@ class MainFrame(wx.Frame):
 				parent_name = e.EventObject.GetItemText(e.EventObject.GetItemParent(e.Item))
 				try:
 					self.PopupMenu(self.pop_menu[type(e)][parent_name][name])
-				except:
-					pass
+				except Exception as e:
+					self.log.info(repr(e))
 			else:
 				self.PopupMenu(self.pop_menu[type(e)][name]["root"])
 
@@ -477,7 +509,6 @@ class MainFrame(wx.Frame):
 		self.Bind(wx.EVT_TREE_ITEM_MENU, self.on_popmenu)
 
 	def OnPaneClose(self, event):
-
 		# caption = event.GetPane().caption
 		#
 		# if caption in ["图像", "数据"]:
@@ -499,7 +530,6 @@ class MainFrame(wx.Frame):
 		self.Destroy()
 
 	def OnAbout(self, event):
-
 		msg = "wx.aui Demo\n" + \
 		      "An advanced window management library for wxWidgets\n" + \
 		      "(c) Copyright 2005-2006, Kirix Corporation"
@@ -511,9 +541,6 @@ class MainFrame(wx.Frame):
 	def OnExit(self, event):
 		self.OnClose()
 
-	def GetDockArt(self):
-		return self._mgr.GetArtProvider()
-
 	def DoUpdate(self):
 		self._mgr.Update()
 
@@ -524,20 +551,20 @@ class MainFrame(wx.Frame):
 		event.Skip()
 
 	def CreateStatisticsCtrl(self):
-		self.statistics_panel = StatisticsView.StatisticsView(self)
+		self.statistics_panel = StatisticsView.StatisticsView(self, self.log)
 		return self.statistics_panel
 
 	def CreateImageCtrl(self, file_path=None):
-		self.image_panel = ImageView.ImageView(self, file_path)
+		self.image_panel = ImageView.ImageView(self, self.log, file_path=file_path)
 		return self.image_panel
 
 	def CreateQueryCtrl(self):
 		# self.query_panel = QueryView.QueryView(self, self.db_column_info)
-		self.query_panel = QueryView.TestView(self, self.db_column_info)
+		self.query_panel = QueryView.QueryView(self, self.log, self.db_column_info)
 		return self.query_panel
 
 	def CreateGrid(self):
-		self.data_view = DataView.DataView(self)
+		self.data_view = DataView.DataView(self, self.log)
 		return self.data_view
 
 	def CreateTreeCtrl(self):

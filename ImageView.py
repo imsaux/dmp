@@ -17,9 +17,10 @@ ID_NEW_AXLE_CALIBRATION = 10
 
 
 class ImageView(wx.Panel):
-    def __init__(self, parent, file_path=None):
+    def __init__(self, parent, log, file_path=None):
         wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.CLIP_CHILDREN)
         self.background = wx.Brush(self.GetBackgroundColour())
+        self.log = log
         self.start_pos = None
         self.end_pos = None
         self.overlay = wx.Overlay()
@@ -119,7 +120,6 @@ class ImageView(wx.Panel):
     def set_draw_mode(self, event=None, mode=ID_NONE):
         if event is not None:
             name = event.EventObject.StringSelection
-            print("name -> ", name)
             if name == "车厢标定":
                 self.draw_mode = ID_CAR_CALIBRATION
             elif name == "车轴标定":
@@ -142,7 +142,6 @@ class ImageView(wx.Panel):
                 self.draw_mode = ID_NONE
         else:
             self.draw_mode = mode
-            print("mode -> ", mode)
 
     def set_image(self, filepath):
         if os.path.exists(filepath):
@@ -150,21 +149,16 @@ class ImageView(wx.Panel):
         self.Refresh()
 
     def on_left_down(self, event):
-        print("on_left_down_in")
         self.CaptureMouse()
         self.start_pos = event.GetPosition()
         self.SetFocus()
-        print("on_left_down_out")
 
     def on_right_down(self, event):
-        print("on_right_down_in")
         self.CaptureMouse()
         self.move_start_pos = event.GetPosition()
         self.SetFocus()
-        print("on_right_down_out")
 
     def on_right_up(self, event):
-        print("on_right_up_in")
         if self.HasCapture():
             self.ReleaseMouse()
         self.dragable = False
@@ -172,8 +166,6 @@ class ImageView(wx.Panel):
         self.show_pos = self.show_pos[0] + self.diff[0], self.show_pos[1] + self.diff[1]
         self.diff = 0, 0
         self.macro_diff = 0, 0
-
-        print("on_right_up_out")
 
     def draw_background_image(self, dc):
         if self.to_show is not None:
@@ -296,7 +288,6 @@ class ImageView(wx.Panel):
 
         # 拖动
         if event.Dragging() and event.RightIsDown():
-            print("on_mouse_move_drag_in")
             if self.move_end_pos == (0, 0):
                 tmp = copy.deepcopy(self.move_start_pos)
             else:
@@ -306,13 +297,11 @@ class ImageView(wx.Panel):
             self.macro_diff = self.move_end_pos[0] - tmp[0], self.move_end_pos[1] - tmp[1]
             self.dragable = True
             self.Refresh()
-            print("on_mouse_move_drag_out")
 
     def on_erase(self, event):
         pass
 
     def on_left_up(self, event):
-        print("on_left_up_in")
         if self.HasCapture():
             self.ReleaseMouse()
         # odc = wx.DCOverlay(self.overlay, self.dc)
@@ -321,15 +310,12 @@ class ImageView(wx.Panel):
         self.start_pos = self.end_pos
         self.end_pos = event.Position
         # self.Refresh()
-        print("on_left_up_out")
         event.Skip()
 
     def on_size(self, event=None):
-        print("on_size_in")
         if event:
             event.Skip()
         self.Refresh()
-        print("on_size_out")
 
     def draw_objects(self, dc):
         if len(self.objects[ID_CAR_CALIBRATION])>0:
@@ -342,7 +328,6 @@ class ImageView(wx.Panel):
             self.draw_rect(dc, rect=rect)
 
     def on_paint(self, event):
-        print("on_paint_in")
         dc = wx.BufferedPaintDC(self)
         dc.Clear()
         self.draw_background_image(dc)
@@ -350,7 +335,6 @@ class ImageView(wx.Panel):
         if self.dragable is False:
             if self.draw_mode == ID_CAR_CALIBRATION:
                 self.draw_rect(dc, id=ID_CAR_CALIBRATION)
-        print("on_paint_out")
 
 
 class test(wx.Panel):
@@ -448,7 +432,6 @@ class test(wx.Panel):
     def set_draw_mode(self, event=None, mode=ID_NONE):
         if event is not None:
             name = event.EventObject.StringSelection
-            print("name -> ", name)
             if name == "车厢标定":
                 self.draw_mode = ID_CAR_CALIBRATION
             elif name == "车轴标定":
@@ -471,7 +454,6 @@ class test(wx.Panel):
                 self.draw_mode = ID_NONE
         else:
             self.draw_mode = mode
-            print("mode -> ", mode)
 
     def set_image(self, filepath):
         if os.path.exists(filepath):

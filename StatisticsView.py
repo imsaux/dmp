@@ -4,11 +4,12 @@ import wx.dataview as dv
 
 
 class StatisticsView(wx.Panel):
-	def __init__(self, parent, data=None, mode=None):
+	def __init__(self, parent, log, data=None, mode=None):
 		wx.Panel.__init__(self, parent, -1)
 		self.parent = parent
 		self.data = data
 		self.mode = mode
+		self.log = log
 		self._all_data = []
 		self.re_fill_enable = True
 		self.can_repeat = None
@@ -72,6 +73,8 @@ class StatisticsView(wx.Panel):
 		if not has_item:
 			self.dvc.AppendItem(['素材数量', len(data)])
 		for item in data:
+			if item is None:
+				continue
 			if len(item) > 0:
 				for i in item:
 					if '-' in i[0]:
@@ -109,7 +112,8 @@ class StatisticsView(wx.Panel):
 			self.clear_data()
 		items = []
 		ids = []
-		for x in [x for x in self._all_data if len(x) > 0]:
+		l = [x for x in self._all_data if x is not None and len(x) > 0]
+		for x in l:
 			for y in x:
 				if y[0] == item:
 					items.append(x)

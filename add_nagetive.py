@@ -10,12 +10,12 @@ class NagetiveAddFrame(wx.Frame):
 		self.SetSize((800, 600))
 		self.SetTitle('添加负样本')
 		self.parent = parent
-		NAP = QueryView.TestView(self, self.parent.db_column_info, nagetive=True)
+		NAP = QueryView.QueryView(self, None, query_items=self.parent.db_column_info, nagetive=True)
 		self.Show()
 		# self.Maximize()
 
-	def db_do_sql(self, sql, need_commit=False, is_save=False, update=False, need_clear=False):
-		return self.parent.db_do_sql(sql, need_commit=need_commit, is_save=is_save, update=update, need_clear=need_clear)
+	def db_do_sql(self, sql, need_commit=False, update=False, need_last=False, need_clear=False, need_random=0):
+		return self.parent.db_do_sql(sql, need_commit=need_commit, update=update, need_last=need_last, need_random=need_random)
 
 	def set_mode(self, value):
 		return self.parent.set_mode(value)

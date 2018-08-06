@@ -11,17 +11,20 @@ import wx
 import wx.dataview as dv
 import Wizard
 import add_nagetive
+import add_replenish
 
 ID_MODE_IMPORT = 0
 ID_MODE_EXPORT = 1
 
 
 class DataView(wx.Panel):
-	def __init__(self, parent, data=None, mode=ID_MODE_IMPORT):
+	def __init__(self, parent, log, data=None, mode=ID_MODE_IMPORT):
 		wx.Panel.__init__(self, parent, -1)
 		self.parent = parent
 		self.data = data
 		self.mode = mode
+		self.log = log
+		self.id = -1
 		self.edit_items = list()
 		self.last_edit_row = -1
 		self.last_edit_col = -1
@@ -36,8 +39,8 @@ class DataView(wx.Panel):
 		self.Sizer = wx.BoxSizer(wx.VERTICAL)
 		self.Sizer.Add(self.dvc, 1, wx.EXPAND)
 
-		b1 = wx.Button(self, label="保存", name="save")
-		self.Bind(wx.EVT_BUTTON, self.on_save, b1)
+		# b1 = wx.Button(self, label="保存", name="save")
+		# self.Bind(wx.EVT_BUTTON, self.on_save, b1)
 		b5 = wx.Button(self, label="清空", name="save")
 		self.Bind(wx.EVT_BUTTON, self.on_clear, b5)
 		b2 = wx.Button(self, label="导入", name="import")
@@ -48,13 +51,15 @@ class DataView(wx.Panel):
 		self.Bind(wx.EVT_BUTTON, self.on_nagetive, b4)
 
 		btnbox = wx.BoxSizer(wx.HORIZONTAL)
-		btnbox.Add(b1, 0, wx.LEFT | wx.RIGHT, 5)
+		# btnbox.Add(b1, 0, wx.LEFT | wx.RIGHT, 5)
 		btnbox.Add(b5, 0, wx.LEFT | wx.RIGHT, 5)
 		btnbox.Add(b2, 0, wx.LEFT | wx.RIGHT, 5)
 		btnbox.Add(b3, 0, wx.LEFT | wx.RIGHT, 5)
 		btnbox.Add(b4, 0, wx.LEFT | wx.RIGHT, 5)
 		self.Sizer.Add(btnbox, 0, wx.TOP | wx.BOTTOM, 5)
 		self.bind_event()
+		if self.data is not None:
+			self.set_data(self.data)
 
 	def bind_event(self):
 		self.dvc.Bind(dv.EVT_DATAVIEW_ITEM_ACTIVATED, self.on_item_dbclick)
@@ -73,32 +78,41 @@ class DataView(wx.Panel):
 		pass
 
 	def on_popup_menu(self, e):
-		m_dataview = wx.Menu()
-		# item1 = wx.MenuItem(m_dataview, wx.NewId(), "负样本")
-		item2 = wx.MenuItem(m_dataview, wx.NewId(), "补充素材")
-		# self.Bind(wx.EVT_MENU, self.on_add_negative_samples, item1)
-		self.Bind(wx.EVT_MENU, self.on_add_replenish, item2)
-		# m_dataview.Append(item1)
-		m_dataview.Append(item2)
-		self.PopupMenu(m_dataview)
+		try:
+			if e.EventObject.SelectedRow != -1:
+				self.id = self.dvc.GetValue(e.EventObject.SelectedRow, 1)
+				m_dataview = wx.Menu()
+				item2 = wx.MenuItem(m_dataview, wx.NewId(), "补充素材")
+				self.Bind(wx.EVT_MENU, self.on_add_replenish, item2)
+				m_dataview.Append(item2)
+				self.PopupMenu(m_dataview)
+		except Exception as e:
+			pass
 
 	def on_add_negative_samples(self, e):  # 添加负样本
 		pass
 
 	def on_add_replenish(self, e):  # 添加补充素材
-		pass
+		ar = add_replenish.ReplenishAddFrame(self.parent, self.id)
+
 
 	def on_edit_start(self, event):
 		self.last_edit_row = event.EventObject.SelectedRow
 		self.last_edit_col = event.EventObject.GetColumnPosition(event.EventObject.GetCurrentColumn())
 
 	def on_item_dbclick(self, event):
-		_id = event.EventObject.GetTextValue(event.EventObject.SelectedRow, 1)
-		_sql = 'select path from dmp.image where id=' + _id
-		img = self.parent.db_do_sql(_sql)[0][0]
-		if os.path.exists(img):
-			self.parent.image_panel.set_image(img)
-			self.parent.on_show_image_view()
+		if self.mode == 1:
+			_id = event.EventObject.GetTextValue(event.EventObject.SelectedRow, 1)
+			_sql = 'select path from dmp.image where id=' + _id
+			img = self.parent.db_do_sql(_sql)[0][0]
+			if os.path.exists(img):
+				self.parent.image_panel.set_image(img)
+				self.parent.on_show_image_view()
+		if self.mode == 0:
+			_path = event.EventObject.GetTextValue(event.EventObject.SelectedRow, 2)
+			if os.path.exists(_path):
+				self.parent.image_panel.set_image(_path)
+				self.parent.on_show_image_view()
 
 	def on_save(self, evt):
 		if len(self.edit_items) > 0:
@@ -132,19 +146,17 @@ class DataView(wx.Panel):
 				for i in range(rows):
 					files = list()
 					for j in range(cols):
-						if j > 1:
+						if j > 1 and self.dvc.GetValue(i, 0):
 							files.append(self.dvc.GetValue(i, j))
 					all.append(files)
 				for l in all:
-					# _path = l[0].replace('\\', '\\\\')
-					_insert_image_sql = 'insert into dmp.image (dmp.image.path, dmp.image.code, dmp.image.side, dmp.image.datetime, dmp.image.line, dmp.image.site, dmp.image.width, dmp.image.height, dmp.image.speed, dmp.image.scale, dmp.image.set_type, dmp.image.status, dmp.image.last, dmp.image.tarpaulin, dmp.image.range, dmp.image.weather, dmp.image.quality_level, dmp.image.calibration_info, dmp.image.axel_info) values ("", "' + \
-					                    l[1] + '", "' + l[2] + '","' + datetime.datetime.strptime(l[3],
-					                                                                              '%Y%m%d%H%M%S').strftime(
-						"%Y-%m-%d %H:%M:%S") + '","' + l[4] + '","' + l[5] + '",' + str(l[6]) + ',' + str(
-						l[7]) + ',' + str(l[8]) + ',' + str(l[9]) + ',"' + l[10] + '","' + l[11] + '",' + str(
-						l[12]) + ',' + str(l[13]) + ',' + str(l[14]) + ',' + str(l[15]) + ',' + str(l[16]) + ',' + str(
-						l[17]) + ',' + str(l[18]) + ')'
-					self.parent.db_do_sql(_insert_image_sql, need_commit=True)
+					if len(l) > 0:
+						_insert_image_sql = 'insert into dmp.image (dmp.image.path, dmp.image.code, dmp.image.side, dmp.image.datetime, dmp.image.line, dmp.image.site, dmp.image.width, dmp.image.height, dmp.image.speed, dmp.image.scale, dmp.image.set_type, dmp.image.status, dmp.image.last, dmp.image.tarpaulin, dmp.image.range, dmp.image.weather, dmp.image.quality_level, dmp.image.calibration_info, dmp.image.axel_info, dmp.image.valid) values ("", "' + l[1] + '", "' + l[2] + '","' + datetime.datetime.strptime(l[3],'%Y%m%d%H%M%S').strftime("%Y-%m-%d %H:%M:%S") + '","' + l[4] + '","' + l[5] + '",' + str(l[6]) + ',' + str(l[7]) + ',' + str(l[8]) + ',' + str(l[9]) + ',"' + l[10] + '","' + l[11] + '",' + str(l[12]) + ',' + str(l[13]) + ',' + str(l[14]) + ',"' + str(l[15]) + '",' + str(l[16]) + ',' + str(l[17]) + ',' + str(l[18]) + ',' + str(l[19]) + ');'
+						self.parent.db_do_sql(_insert_image_sql, need_commit=True)
+						_select_image_sql = 'select id from dmp.image where dmp.image.code="' + l[1] + '" and dmp.image.datetime="' + datetime.datetime.strptime(l[3],'%Y%m%d%H%M%S').strftime("%Y-%m-%d %H:%M:%S") + '" and dmp.image.width=' + str(l[6]) + ' and dmp.image.height=' + str(l[7]) + ' and dmp.image.speed=' + str(l[8]) + ' and dmp.image.line="' + l[4] + '"'
+						data = self.parent.db_do_sql(_select_image_sql)[0][0]
+						print(data)
+						# todo 向服务器发送文件
 		else:
 			r = Wizard.show_import_wizard(self)
 			if r is not None:
@@ -164,13 +176,14 @@ class DataView(wx.Panel):
 
 	def dvc_init(self):
 		i = 0
-		self.dvc.AppendToggleColumn('选择', width=80, mode=dv.DATAVIEW_CELL_ACTIVATABLE)
+		self.dvc.AppendToggleColumn('选择', width=30, mode=dv.DATAVIEW_CELL_ACTIVATABLE)
 		for key in self.parent.db_column_info.keys():
 			i += 1
-			if i < 14:
-				self.dvc.AppendTextColumn(key, width=100)
-			else:
-				self.dvc.AppendTextColumn(key, width=100, mode=dv.DATAVIEW_CELL_EDITABLE)
+			# if i < 14:
+			# 	self.dvc.AppendTextColumn(key, width=100)
+			# else:
+			# 	self.dvc.AppendTextColumn(key, width=100, mode=dv.DATAVIEW_CELL_EDITABLE) # 可编辑
+			self.dvc.AppendTextColumn(key, width=60)
 
 		for c in self.dvc.Columns:
 			c.Sortable = True

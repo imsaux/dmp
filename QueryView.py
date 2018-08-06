@@ -4,6 +4,7 @@ import wx.adv
 import PopupControl
 import wx.lib.masked as masked
 import wx.lib.scrolledpanel as scrolled
+
 #
 # class QueryView(wx.Panel):
 # 	def __init__(self, parent, query_items=None, nagetive=False):
@@ -376,20 +377,21 @@ import wx.lib.scrolledpanel as scrolled
 # 		self.parent.on_show_data_view()
 #
 
-class TestView(scrolled.ScrolledPanel):
-	def __init__(self, parent, query_items=None, nagetive=False):
+
+class QueryView(scrolled.ScrolledPanel):
+	def __init__(self, parent, log, query_items=None, nagetive=False):
 		# wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.CLIP_CHILDREN)
 		scrolled.ScrolledPanel.__init__(self, parent, -1)
 		if query_items is None:
 			return
 		self.query_items = query_items
+		self.log = log
 		self.is_nagetive = nagetive
 		self.parent = parent
-		# self.gbs = gbs = wx.GridBagSizer(vgap=len(query_items.keys())+1, hgap=8)
 		self.ALL_SIZER = wx.BoxSizer(wx.VERTICAL)
-		# self.ALL_SIZER.Add((0, 0))
 		self.row = 1
 		self.col = 0
+		self.samples_amount = None
 		checklist = []
 		self.controls = dict()
 		label_type = [
@@ -708,7 +710,6 @@ class TestView(scrolled.ScrolledPanel):
 					self.train_set_percent = data
 				elif 'ctr_samples_input' == item:
 					self.samples_amount = data
-
 				else:
 					fields = item.split('_')
 					_field = None
@@ -730,5 +731,13 @@ class TestView(scrolled.ScrolledPanel):
 								_in_ += ',"' + i + '"'
 
 						base_sql += ' AND ' + _field + ' in (' + _in_ + ')'
-		self.parent.db_do_sql(base_sql, is_save=True, update=True, need_clear=False if self.is_nagetive else True)
-		self.parent.on_show_data_view()
+		try:
+			self.parent.last_data = list()
+			if self.is_nagetive and self.samples_amount is not None and int(self.samples_amount) > 0:
+				self.parent.db_do_sql(base_sql, update=True, need_clear=False if self.is_nagetive else True, need_random=self.samples_amount, need_last=True)
+			else:
+				self.parent.db_do_sql(base_sql, update=True, need_clear=False if self.is_nagetive else True, need_last=True)
+			self.parent.on_show_data_view()
+		except Exception as e:
+			self.log.info(repr(e))
+

@@ -78,6 +78,8 @@ class Import_SetDir(wx.adv.WizardPage):
         line_sizer.Add(self.btn, 0, wx.ALL, 5)
         self.sizer.Add(line_sizer)
         self.sizer.Add(wx.StaticText(self, -1, "站点 ", (20, 10)), 0, wx.ALL, 1)
+        self.tc_site = wx.TextCtrl(self, -1, size=(200, -1))
+        self.sizer.Add(self.tc_site, 0, wx.ALL, 5)
 
         # todo 站点列表
 
@@ -222,6 +224,7 @@ def show_import_wizard(parent):
             result = dict()
             if page1.rb.GetStringSelection() == '新素材':
                 result['image'] = page2.tc.GetValue() if os.path.exists(page2.tc.GetValue()) else ''
+                result['site'] = page2.tc_site.GetValue() if page2.tc_site.GetValue() != '' else '无'
             elif page1.rb.GetStringSelection() == '旧素材':
                 result['label_type'] = page3.rb_label.GetStringSelection()
                 result['label_dir'] = page3.tc_label.GetValue()

@@ -11,6 +11,7 @@ import datetime
 import ImageView
 import QueryView
 import DataView
+import SettingView
 import StatisticsView
 import CarClassification
 import json
@@ -22,6 +23,7 @@ ID_Image_view = wx.NewId()
 ID_Data_view = wx.NewId()
 ID_Query_view = wx.NewId()
 ID_Statistics_view = wx.NewId()
+ID_Setting_view = wx.NewId()
 ID_About = wx.NewId()
 ID_EXIT = wx.NewId()
 
@@ -129,7 +131,7 @@ class MainFrame(wx.Frame):
 		view_menu.Append(ID_Statistics_view, "统计视图")
 
 		setting_menu = wx.Menu()
-		setting_menu.Append(ID_About, "设置")
+		setting_menu.Append(ID_Setting_view, "设置")
 
 		mb.Append(file_menu, "文件")
 		mb.Append(view_menu, "视图")
@@ -383,16 +385,28 @@ class MainFrame(wx.Frame):
 	def load_default_ui(self):
 		self.on_show_data_view()
 		self.on_show_query_view()
+	
+	def CreateSetting(self):
+		self.setting_view = SettingView.SettingView(self, self.log)
+		return self.setting_view
+
 
 	def add_panel(self):
 		self._mgr.AddPane(self.CreateGrid(), aui.AuiPaneInfo().
 		                  Name("数据").Caption("数据").MinSize(wx.Size(200, 150)).Bottom().Layer(0).Row(0).Position(
 			0).CloseButton(True).MaximizeButton(True))
+		self._mgr.AddPane(self.CreateSetting(), aui.AuiPaneInfo().
+		                  Name("设置").Caption("设置").MinSize(wx.Size(330, 150)).Right().Layer(0).Row(0).Position(
+			0).CloseButton(True).MaximizeButton(True))
 		self._mgr.AddPane(self.CreateStatisticsCtrl(), aui.AuiPaneInfo().
 		                  Name("统计").Caption("统计").MinSize(wx.Size(200, 150)).Bottom().Layer(0).Row(0).Position(
 			1).CloseButton(True).MaximizeButton(True))
-		self._mgr.AddPane(self.CreateQueryCtrl(), aui.AuiPaneInfo().Name("检索").Caption('检索').MinSize(wx.Size(400,100)).Left().Layer(0).Row(0).Position(0).CloseButton(True))
+		self._mgr.AddPane(self.CreateQueryCtrl(), aui.AuiPaneInfo().Name("检索").Caption('检索').MinSize(wx.Size(430,100)).Left().Layer(0).Row(0).Position(0).CloseButton(True))
 		self._mgr.AddPane(self.CreateImageCtrl(), aui.AuiPaneInfo().Name("图像").CenterPane().Hide())
+		self._mgr.Update()
+
+	def on_show_setting_view(self, event=None):
+		self._mgr.GetPAne('设置').Show()
 		self._mgr.Update()
 
 	def on_show_query_view(self, event=None):
@@ -411,6 +425,10 @@ class MainFrame(wx.Frame):
 
 	def on_show_statistics_view(self, event=None):
 		self._mgr.GetPane("统计").Show().Bottom().Layer(0).Row(0).Position(0)
+		self._mgr.Update()
+
+	def on_show_setting_view(self, event=None):
+		self._mgr.GetPane("设置").Show().Right().Layer(0).Row(0).Position(0)
 		self._mgr.Update()
 
 	def on_folder_add(self, e):
@@ -501,6 +519,7 @@ class MainFrame(wx.Frame):
 		self.Bind(wx.EVT_MENU, self.on_show_image_view, id=ID_Image_view)
 		self.Bind(wx.EVT_MENU, self.on_show_query_view, id=ID_Query_view)
 		self.Bind(wx.EVT_MENU, self.on_show_statistics_view, id=ID_Statistics_view)
+		self.Bind(wx.EVT_MENU, self.on_show_setting_view, id=ID_Setting_view)
 		self.Bind(wx.EVT_MENU, self.OnExit, id=wx.ID_EXIT)
 		self.Bind(wx.EVT_MENU, self.OnAbout, id=ID_About)
 
@@ -559,7 +578,6 @@ class MainFrame(wx.Frame):
 		return self.image_panel
 
 	def CreateQueryCtrl(self):
-		# self.query_panel = QueryView.QueryView(self, self.db_column_info)
 		self.query_panel = QueryView.QueryView(self, self.log, self.db_column_info)
 		return self.query_panel
 

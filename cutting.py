@@ -7,7 +7,7 @@ import Util
 
 
 class BaseCutting():
-    def __init__(self, file_path):
+    def __init__(self, file_path, save_dir):
         self.file_path = None
         self.img = None
         self.regions = list()
@@ -18,7 +18,7 @@ class BaseCutting():
             self.img = pilImage.open(self.file_path)
             _train_info = self.file_path.split('\\')
             self.basename = os.path.splitext(_train_info[-1])[0]
-            self.basepath = '\\'.join(_train_info[:-1])
+            self.basepath = save_dir
 
             tmp = _train_info[-1].split('_')
             if len(tmp) == 5:
@@ -49,8 +49,8 @@ class BaseCutting():
 
 
 class K_DOOR_Cutting(BaseCutting):
-    def __init__(self, file_path):
-        BaseCutting.__init__(self, file_path)
+    def __init__(self, file_path, save_dir):
+        BaseCutting.__init__(self, file_path, save_dir)
         
     def cut(self, need_save=True):
         if self.img.width > 2048*2:
@@ -65,8 +65,8 @@ class K_DOOR_Cutting(BaseCutting):
 
 
 class J_OBJECT_Cutting(BaseCutting):
-    def __init__(self, file_path):
-        BaseCutting.__init__(self, file_path)
+    def __init__(self, file_path, save_dir):
+        BaseCutting.__init__(self, file_path, save_dir)
         if self.train_info is not None and 'side' in self.train_info.keys():
             self.side = self.train_info['side']
         else:
@@ -110,8 +110,8 @@ class J_OBJECT_Cutting(BaseCutting):
 
 
 class Joint_OBJECT_Cutting(BaseCutting):
-    def __init__(self, file_path):
-        BaseCutting.__init__(self, file_path)
+    def __init__(self, file_path, save_dir):
+        BaseCutting.__init__(self, file_path, save_dir)
 
     def cut(self, need_save=True):
         carbration_x = 0
@@ -173,8 +173,8 @@ class Joint_OBJECT_Cutting(BaseCutting):
 
 
 class T_OBJECT_Cutting(BaseCutting):
-    def __init__(self, file_path):
-        BaseCutting.__init__(self, file_path)
+    def __init__(self, file_path, save_dir):
+        BaseCutting.__init__(self, file_path, save_dir)
 
     def cut(self, need_save=True):
         img_top = None
@@ -244,8 +244,8 @@ class T_OBJECT_Cutting(BaseCutting):
 
         
 class Top_ALL_Cutting(BaseCutting):
-    def __init__(self, file_path):
-        BaseCutting.__init__(self, file_path)
+    def __init__(self, file_path, save_dir):
+        BaseCutting.__init__(self, file_path, save_dir)
 
     def cut(self, need_save=True):
         carbration_y = 0
@@ -266,8 +266,8 @@ class Top_ALL_Cutting(BaseCutting):
 
 
 class ZX_ANGLECOCK_Cutting(BaseCutting):
-    def __init__(self, file_path):
-        BaseCutting.__init__(self, file_path)
+    def __init__(self, file_path, save_dir):
+        BaseCutting.__init__(self, file_path, save_dir)
 
     def cut(self, need_save=True):
         axel_y = 0
@@ -318,8 +318,8 @@ class ZX_ANGLECOCK_Cutting(BaseCutting):
 
 
 class ZX_C_BTMBOLT_Cutting(BaseCutting):
-    def __init__(self, file_path):
-        BaseCutting.__init__(self, file_path)
+    def __init__(self, file_path, save_dir):
+        BaseCutting.__init__(self, file_path, save_dir)
 
     def cut(self, need_save=True):
         axel_y = 0
@@ -379,8 +379,8 @@ class ZX_C_BTMBOLT_Cutting(BaseCutting):
 
         
 class ZX_CHAINPIPE_Cutting(BaseCutting):
-    def __init__(self, file_path):
-        BaseCutting.__init__(self, file_path)
+    def __init__(self, file_path, save_dir):
+        BaseCutting.__init__(self, file_path, save_dir)
 
     def cut(self, need_save=True):
         axel_y = 0
@@ -444,7 +444,9 @@ class ZX_CHAINPIPE_Cutting(BaseCutting):
             elif self.train_info['kind'][1] == 'B':
                 chainpipe_x_ratio = -1.18
                 chainpipe_width_ratio = 0.95
-
+        else:
+            return # 非走行部图片退出
+            
         _x = base_point_x + axel_length * chainpipe_x_ratio
         _w = axel_length * chainpipe_width_ratio
         _w = 1440 if _w > 1440 else _w
@@ -467,12 +469,12 @@ class ZX_CHAINPIPE_Cutting(BaseCutting):
         if need_save:
             self.save()
             
-if __name__ == '__main__':
-    # t = K_DOOR_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\KYW25G_202.202.202.3_20180215191704_R011_11.jpg')
-    # t = J_OBJECT_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\J239_202.202.202.3_20180215191704_L001_1.jpg')
-    # t = ZX_CHAINPIPE_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\QG60K_202.202.202.3_20171206112254_ZR016_16.jpg')
-    # t = Top_ALL_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\QG17DK_202.202.202.2_20170530051910_T014_14.jpg')
-    # t = T_OBJECT_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\TC70_202.202.202.2_20160510121653_L003_3.jpg')
-    # t = K_DOOR_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\0527276.jpg')
-    # t.cut()
-    pass
+# if __name__ == '__main__':
+#     # t = K_DOOR_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\KYW25G_202.202.202.3_20180215191704_R011_11.jpg')
+#     # t = J_OBJECT_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\J239_202.202.202.3_20180215191704_L001_1.jpg')
+#     t = ZX_CHAINPIPE_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\QG60K_202.202.202.3_20171206112254_ZR016_16.jpg', r'd:\\')
+#     # t = Top_ALL_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\QG17DK_202.202.202.2_20170530051910_T014_14.jpg')
+#     # t = T_OBJECT_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\TC70_202.202.202.2_20160510121653_L003_3.jpg')
+#     # t = K_DOOR_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\0527276.jpg')
+#     t.cut()
+#     # pass

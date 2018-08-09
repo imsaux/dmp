@@ -17,6 +17,7 @@ import CarClassification
 import json
 import pymysql
 import PIL.Image
+import cutting
 from six import BytesIO
 
 ID_Image_view = wx.NewId()
@@ -26,7 +27,20 @@ ID_Statistics_view = wx.NewId()
 ID_Setting_view = wx.NewId()
 ID_About = wx.NewId()
 ID_EXIT = wx.NewId()
+ID_About_view = wx.NewId()
 
+cutting_relation = {
+	'object': {
+		'客车车门': ['K_DOOR_Cutting',],
+		'异物': ['J_OBJECT_Cutting', 'Joint_OBJECT_Cutting', 'T_OBJECT_Cutting'],
+		'折角塞门开启': ['ZX_ANGLECOCK_Cutting', ],
+		'折角塞门关闭': ['ZX_ANGLECOCK_Cutting', ],
+		'闸链': ['ZX_CHAINPIPE_Cutting',],
+		'尾车特征区': ['ZX_CHAINPIPE_Cutting',],
+		'风管': ['ZX_CHAINPIPE_Cutting',],
+		'敞车下门门栓开启': ['ZX_C_BTMBOLT_Cutting',]
+	},
+}
 
 def _datetime_format(date=None, mode=None):
 	if date is None:
@@ -88,6 +102,27 @@ class MainFrame(wx.Frame):
 		self.log = _get_logger()
 		self._mgr = aui.AuiManager()
 		self._mgr.SetManagedWindow(self)
+		
+		self.sys_path = os.path.dirname(__file__)
+		if not os.path.exists(os.path.join(self.sys_path, 'temp')):
+			os.makedirs(os.path.join(self.sys_path, 'temp'))
+		if not os.path.exists(os.path.join(self.sys_path, 'temp', 'negative')):
+			os.makedirs(os.path.join(self.sys_path, 'temp', 'negative'))
+		if not os.path.exists(os.path.join(self.sys_path, 'temp', 'replenish')):
+			os.makedirs(os.path.join(self.sys_path, 'temp', 'replenish'))
+		if not os.path.exists(os.path.join(self.sys_path, 'temp', 'origin')):
+			os.makedirs(os.path.join(self.sys_path, 'temp', 'origin'))
+		if not os.path.exists(os.path.join(self.sys_path, 'temp', 'png')):
+			os.makedirs(os.path.join(self.sys_path, 'temp', 'png'))
+		if not os.path.exists(os.path.join(self.sys_path, 'temp', 'cutting')):
+			os.makedirs(os.path.join(self.sys_path, 'temp', 'cutting'))
+
+		self.negative_temp_path = os.path.join(self.sys_path, 'temp', 'negative') # 负样本暂存文件夹
+		self.replenish_temp_path = os.path.join(self.sys_path, 'temp', 'replenish') # 补充素材暂存文件夹
+		self.origin_temp_path = os.path.join(self.sys_path, 'temp', 'origin') # 接收自服务器的原图
+		self.png_temp_path = os.path.join(self.sys_path, 'temp', 'png') # 通过标注创建的分割标签
+		self.cutting_temp_path = os.path.join(self.sys_path, 'temp', 'cutting') # 裁剪暂存文件夹
+
 		self.mouse_pos = 0, 0
 		self.SetIcon(_get_icon())
 		self.tree_db = None
@@ -101,6 +136,7 @@ class MainFrame(wx.Frame):
 		self.cursor = None
 		self.db_column_info = None
 		self.last_data = list()
+		self.last_data_set = set()
 		self.last_query_objects = set()
 		self.import_param = None
 		self.export_param = None
@@ -132,6 +168,7 @@ class MainFrame(wx.Frame):
 
 		setting_menu = wx.Menu()
 		setting_menu.Append(ID_Setting_view, "设置")
+		setting_menu.Append(ID_About_view, "关于")
 
 		mb.Append(file_menu, "文件")
 		mb.Append(view_menu, "视图")
@@ -161,20 +198,45 @@ class MainFrame(wx.Frame):
 	def set_mode(self, value):
 		self.mode = value
 
-	def set_import_param(self, value):
-		self.import_param = value
-		self.anaylze_import_param()
-
-	def set_export_param(self, value):
-		self.export_param = value
-		self.anaylze_export_param()
-
-	def anaylze_export_param(self):
-		# todo 按尺度缩放
-		# todo 图像处理
+	def to_export(self, work):
+		import threading
 		self.set_mode(1)
+		# 多线程操作
+		for w in work:
+			t_recv = threading.Thread(target=self.e_to_recv, args=(w,))
+	
+	def e_to_zoom(self):
+		pass
 
-	def anaylze_import_param(self):
+	def e_to_cutting(self, work):
+		import inspect
+		if len(self.last_query_objects) == 0:
+			pass # 导出原图
+		else:
+			_methods = []
+			for obj in [obj.split('-')[0] for obj in self.last_query_objects]:
+				if obj in cutting_relation['object'].keys():
+					_methods.append(cutting_relation['object'][obj])
+			_tmp = []
+			[_tmp.extend(x) for x in _methods]
+			_methods = set(_tmp)
+			if len(_methods) == 1: # 进行裁剪
+				for r, d, f in os.walk(self.cutting_temp_path):
+					for _file in f:
+						os.remove(_file)
+				_all_ = inspect.getmembers(cutting)
+				_cls = [i[1] for i in _all_ if i[0] == list(_methods)[0]][0]
+				rows = self.data_view.dvc.GetItemCount()
+				for i in range(rows):
+					if self.data_view.dvc.GetValue(i, 0):
+						_t = _cls(self.data_view.dvc.GetValue(i, 2), self.cutting_temp_path)
+						_t.cut()
+
+
+	def e_to_recv(self):
+		pass
+
+	def to_import(self):
 		if 'image' in self.import_param.keys():  # 原图导入
 			c = CarClassification.CarClassification(self.import_param['image']).IndexData
 			index = 1
@@ -209,6 +271,7 @@ class MainFrame(wx.Frame):
 							data.append(0) # todo 标定信息
 							data.append(0) # todo 车轴信息
 							data.append(0)
+							data.append('原图')
 							all_data.append(data)
 							index += 1
 						except Exception as e:
@@ -280,6 +343,7 @@ class MainFrame(wx.Frame):
 								data.append(0)
 								data.append(0)
 								data.append(0)
+								data.append('原图')	
 								all_data.append(data)
 								index += 1
 				self.data_view.set_data(all_data)
@@ -289,7 +353,8 @@ class MainFrame(wx.Frame):
 		self.last_query_objects = set()
 
 	def set_query_objects(self, query_objects):
-		self.last_query_objects = set(query_objects.split(','))
+		# self.last_query_objects = set(query_objects.split(','))
+		self.last_query_objects = set(query_objects)
 
 	def read_setting(self):
 		if os.path.exists('setting.json'):
@@ -304,13 +369,16 @@ class MainFrame(wx.Frame):
 				self.server_ip = str(kd['server']['server_ip'])
 				self.server_port = int(kd['server']['server_port'])
 
-	def db_do_sql(self, sql, need_commit=False, update=False, need_last=False, need_clear=False, need_random=0):
-		self.cursor.execute(sql)
+	def db_do_sql(self, sql, need_commit=False, update=False, need_last=False, need_clear=False, need_random=-1, for_dataview=False, data_mode=0):
+		if self.cursor is None:
+			self.db_connect()
+		self.cursor.execute(sql + ';')
 		data = self.cursor.fetchall()
 		if len(data) == 0:
 			return []
 		try:
 			all = list()
+			all_set = list()
 			if int(need_random) > 0:
 				import copy
 				import random
@@ -319,25 +387,44 @@ class MainFrame(wx.Frame):
 					if len(all) == int(need_random) or len(_data) == 0:
 						break
 					tmp = random.choice(_data)
-					if tmp not in self.last_data and tmp not in all:
-						all.append(tmp)
+					_tmp = list(tmp)
+					_tmp.append('负样本')
+
+					if repr(set(tmp)) not in self.last_data_set and _tmp not in all:
+						all.append(_tmp)
+						all_set.append(set(tmp))
 					_data.remove(tmp)
 			else:
 				for tmp in data:
-					if len(self.last_data) > 0:
+					if len(self.last_data_set) > 0:
 						if tmp not in self.last_data:
-							all.append(tmp)
+							if for_dataview:
+								_tmp = list(tmp)
+								_tmp.append('原图' if int(need_random) == -1 else '负样本')
+								all.append(_tmp)
+								all_set.append(set(tmp))
+							else:
+								all.append(tmp)
+								all_set.append(set(tmp))
 					else:
-						all.append(tmp)
+						if for_dataview:
+							_tmp = list(tmp)
+							_tmp.append('原图' if int(need_random) == -1 else '负样本')
+							all.append(_tmp)
+							all_set.append(set(tmp))
+						else:
+							all.append(tmp)
+							all_set.append(tmp)
 			data = all
 			if need_last:
-				self.last_data = list(set(data) | set(self.last_data))
+				self.last_data = data
+				self.last_data_set = {repr(x) for x in all_set} | self.last_data_set
 		except Exception as e:
-			return []
 			self.log.info(repr(e))
+			return []
 		if update:
 			self.data_view.set_data(data, need_clear)
-			self.statistics_panel.set_data(data, need_clear)
+			self.statistics_panel.set_data(data, need_clear, data_mode=data_mode)
 		if need_commit:
 			self.db.commit()
 		return data
@@ -397,7 +484,7 @@ class MainFrame(wx.Frame):
 			0).CloseButton(True).MaximizeButton(True))
 		self._mgr.AddPane(self.CreateSetting(), aui.AuiPaneInfo().
 		                  Name("设置").Caption("设置").MinSize(wx.Size(330, 150)).Right().Layer(0).Row(0).Position(
-			0).CloseButton(True).MaximizeButton(True))
+			0).CloseButton(True).MaximizeButton(True).Hide())
 		self._mgr.AddPane(self.CreateStatisticsCtrl(), aui.AuiPaneInfo().
 		                  Name("统计").Caption("统计").MinSize(wx.Size(200, 150)).Bottom().Layer(0).Row(0).Position(
 			1).CloseButton(True).MaximizeButton(True))

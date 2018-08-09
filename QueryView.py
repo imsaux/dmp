@@ -19,7 +19,7 @@ class QueryView(scrolled.ScrolledPanel):
 		self.ALL_SIZER = wx.BoxSizer(wx.VERTICAL)
 		self.row = 1
 		self.col = 0
-		self.samples_amount = None
+		self.samples_amount = -1
 		checklist = []
 		self.controls = dict()
 		label_type = [
@@ -194,6 +194,7 @@ class QueryView(scrolled.ScrolledPanel):
 		self.label_ctrls = []
 		st = wx.StaticText(self, -1, '标签类型')
 		ctrl = PopupControl.PopControl(self, 2, label_type, self, -1, pos=(30, 30))
+		ctrl.SetValue(label_type[0])
 		setattr(self, 'ctr_label_type', ctrl)
 		self.label_ctrls.append((st, None, ctrl))
 
@@ -243,10 +244,10 @@ class QueryView(scrolled.ScrolledPanel):
 			_line_sizer = wx.BoxSizer(wx.HORIZONTAL)
 			self.btn_query = wx.Button(self, -1, '检索')
 			self.btn_query.Bind(wx.EVT_BUTTON, self.on_query_click)
-			self.btn_clear = wx.Button(self, -1, '清空')
-			self.btn_clear.Bind(wx.EVT_BUTTON, self.on_clear_click)
+			# self.btn_clear = wx.Button(self, -1, '清空')
+			# self.btn_clear.Bind(wx.EVT_BUTTON, self.on_clear_click)
 			_line_sizer.Add(self.btn_query, 0, wx.ALIGN_CENTRE, 5)
-			_line_sizer.Add(self.btn_clear, 0, wx.ALIGN_CENTRE, 5)
+			# _line_sizer.Add(self.btn_clear, 0, wx.ALIGN_CENTRE, 5)
 			self.ALL_SIZER.Add(_line_sizer, 0, wx.ALIGN_CENTRE, 5)
 		else:
 			self.btn_query = wx.Button(self, -1, '确定')
@@ -256,23 +257,17 @@ class QueryView(scrolled.ScrolledPanel):
 		self.SetSizer(self.ALL_SIZER)
 		self.SetupScrolling()
 
-	def update_pos(self):
-		if self.col != 0:
-			if self.col + 1 < 8:
-				self.col += 1
-			else:
-				self.col = 0
-				self.row += 1
-		else:
-			self.col += 1
-
 	def on_clear_click(self, e):
 		pass
 
 	def on_query_click(self, event):
+		self.label_object_value = None
+		self.label_type_value = None
 		self.parent.set_mode(1)
+		if not self.is_nagetive:
+			self.parent.clear_query_objects()
+			self.parent.clear_dataview_data()
 		base_sql = 'SELECT * FROM dmp.image where 1=1'
-		self.parent.clear_query_objects()
 		for item in dir(self):
 			if 'ctr_' in item:
 				data = getattr(self, item).GetValue()
@@ -311,25 +306,27 @@ class QueryView(scrolled.ScrolledPanel):
 						base_sql += ' OR code like "%' + kind + '%"'
 					base_sql += ')'
 				elif 'ctr_label_type' == item:
-					_in_ = ''
-					for i in data.split(','):
-						if _in_ == '':
-							_in_ += '"' + i + '"'
-						else:
-							_in_ += ',"' + i + '"'
-					base_sql += ' AND id in (SELECT ril.image_id FROM dmp.r_image_label as ril WHERE ril.label_id in (SELECT l.id FROM dmp.label as l WHERE l.type in (' + _in_ + ')))'
+					self.label_type_value = data
+					# _in_ = ''
+					# for i in data.split(','):
+					# 	if _in_ == '':
+					# 		_in_ += '"' + i + '"'
+					# 	else:
+					# 		_in_ += ',"' + i + '"'
+					# base_sql += ' AND id in (SELECT ril.image_id FROM dmp.r_image_label as ril WHERE ril.label_id in (SELECT l.id FROM dmp.label as l WHERE l.type in (' + _in_ + ')))'
 				elif 'ctr_label_object' == item:
-					_in_ = ''
-					for i in data.split(','):
-						if _in_ == '':
-							_in_ += '"' + i + '"'
-						else:
-							_in_ += ',"' + i + '"'
-					if not self.is_nagetive:
-						base_sql += ' AND id in (SELECT ril.image_id FROM dmp.r_image_label as ril WHERE ril.label_id in (SELECT l.id FROM dmp.label as l WHERE l.name in (' + _in_ + ')))'
-					else:
-						base_sql += ' AND id not in (SELECT ril.image_id FROM dmp.r_image_label as ril WHERE ril.label_id in (SELECT l.id FROM dmp.label as l WHERE l.name in (' + _in_ + ')))'
-					self.parent.set_query_objects(data)
+					self.label_object_value = data
+					# _in_ = ''
+					# for i in data.split(','):
+					# 	if _in_ == '':
+					# 		_in_ += '"' + i + '"'
+					# 	else:
+					# 		_in_ += ',"' + i + '"'
+					# if not self.is_nagetive:
+					# 	base_sql += ' AND id in (SELECT ril.image_id FROM dmp.r_image_label as ril WHERE ril.label_id in (SELECT l.id FROM dmp.label as l WHERE l.name in (' + _in_ + ')))'
+					# else:
+					# 	base_sql += ' AND id not in (SELECT ril.image_id FROM dmp.r_image_label as ril WHERE ril.label_id in (SELECT l.id FROM dmp.label as l WHERE l.name in (' + _in_ + ')))'
+					# self.parent.set_query_objects(data)
 				elif 'ctr_alarm_type' == item:
 					_in_ = ''
 					for i in data.split(','):
@@ -339,11 +336,20 @@ class QueryView(scrolled.ScrolledPanel):
 							_in_ += ',"' + i + '"'
 					base_sql += ' AND id in (SELECT ria.image_id FROM dmp.r_image_alarm as ria WHERE ria.alarm_id in (SELECT a.id FROM dmp.alarm as a WHERE a.name in (' + _in_ + ')))'
 				elif 'ctr_testset_input' == item:
-					self.test_set_percent = data
+					try:
+						self.test_set_percent = float(data)
+					except Exception as e:
+						self.test_set_percent = 0
 				elif 'ctr_trainset_input' == item:
-					self.train_set_percent = data
+					try:
+						self.train_set_percent = float(data)
+					except Exception as e:
+						self.train_set_percent = 0
 				elif 'ctr_samples_input' == item:
-					self.samples_amount = data
+					try:
+						self.samples_amount = int(data)
+					except Exception as e:
+						self.samples_amount = 0
 				else:
 					fields = item.split('_')
 					_field = None
@@ -365,13 +371,28 @@ class QueryView(scrolled.ScrolledPanel):
 								_in_ += ',"' + i + '"'
 
 						base_sql += ' AND ' + _field + ' in (' + _in_ + ')'
-		try:
-			self.parent.last_data = list()
-			if self.is_nagetive and self.samples_amount is not None and int(self.samples_amount) > 0:
-				self.parent.db_do_sql(base_sql, update=True, need_clear=True, need_random=self.samples_amount, need_last=True)
+
+		if self.label_object_value is not None and self.label_type_value is not None:
+			_tmp = []
+			for obj in self.label_object_value.split(','):
+				for typ in self.label_type_value.split(','):
+					_tmp.append(obj + '-' + typ)
+
+			if not self.is_nagetive:
+				base_sql += ' AND id in (SELECT ril.image_id FROM dmp.r_image_label as ril WHERE ril.label_id in (SELECT l.id FROM dmp.label as l WHERE l.name in (' + ','.join(['"'+str(x)+'"' for x in self.label_object_value.split(',')]) + ') and l.type in (' + ','.join(['"'+str(x)+'"' for x in self.label_type_value.split(',')]) + ')))'
 			else:
-				self.parent.db_do_sql(base_sql, update=True, need_clear=False if self.is_nagetive else True, need_last=True)
+				base_sql += ' AND id not in (SELECT ril.image_id FROM dmp.r_image_label as ril WHERE ril.label_id in (SELECT l.id FROM dmp.label as l WHERE l.name in (' + ','.join(['"'+str(x)+'"' for x in self.label_object_value.split(',')]) + ') and l.type in (' + ','.join(['"'+str(x)+'"' for x in self.label_type_value.split(',')]) + ')))'
+			self.parent.set_query_objects(_tmp)
+
+		try:
+			self.parent.last_data_set = set()
+			if self.is_nagetive and self.samples_amount != -1:
+				self.parent.db_do_sql(base_sql, update=True, need_clear=True, need_random=self.samples_amount, need_last=True, for_dataview=True)
+			else:
+				self.parent.db_do_sql(base_sql, update=True, need_clear=False if self.is_nagetive else True, need_last=True, for_dataview=True)
 			self.parent.on_show_data_view()
 		except Exception as e:
 			self.log.info(repr(e))
+		finally:
+			self.samples_amount = -1
 

@@ -26,6 +26,7 @@ class DataView(wx.Panel):
 		self.log = log
 		self.id = -1
 		self.edit_items = list()
+		self._replenish_data = None
 		self.last_edit_row = -1
 		self.last_edit_col = -1
 		self.dvc = dv.DataViewListCtrl(self,
@@ -41,21 +42,24 @@ class DataView(wx.Panel):
 
 		# b1 = wx.Button(self, label="保存", name="save")
 		# self.Bind(wx.EVT_BUTTON, self.on_save, b1)
-		b5 = wx.Button(self, label="清空", name="save")
-		self.Bind(wx.EVT_BUTTON, self.on_clear, b5)
+		b1 = wx.Button(self, label="清空", name="save")
+		self.Bind(wx.EVT_BUTTON, self.on_clear, b1)
 		b2 = wx.Button(self, label="导入", name="import")
 		self.Bind(wx.EVT_BUTTON, self.on_import, b2)
 		b3 = wx.Button(self, label="导出", name="export")
 		self.Bind(wx.EVT_BUTTON, self.on_export, b3)
 		b4 = wx.Button(self, label="添加负样本", name="nagetive")
-		self.Bind(wx.EVT_BUTTON, self.on_nagetive, b4)
+		self.Bind(wx.EVT_BUTTON, self.on_add_negative, b4)
+		b5 = wx.Button(self, label="补充素材", name="replenish")
+		self.Bind(wx.EVT_BUTTON, self.on_add_replenish, b5)
 
 		btnbox = wx.BoxSizer(wx.HORIZONTAL)
 		# btnbox.Add(b1, 0, wx.LEFT | wx.RIGHT, 5)
-		btnbox.Add(b5, 0, wx.LEFT | wx.RIGHT, 5)
+		btnbox.Add(b1, 0, wx.LEFT | wx.RIGHT, 5)
 		btnbox.Add(b2, 0, wx.LEFT | wx.RIGHT, 5)
 		btnbox.Add(b3, 0, wx.LEFT | wx.RIGHT, 5)
 		btnbox.Add(b4, 0, wx.LEFT | wx.RIGHT, 5)
+		btnbox.Add(b5, 0, wx.LEFT | wx.RIGHT, 5)
 		self.Sizer.Add(btnbox, 0, wx.TOP | wx.BOTTOM, 5)
 		self.bind_event()
 		if self.data is not None:
@@ -63,9 +67,9 @@ class DataView(wx.Panel):
 
 	def bind_event(self):
 		self.dvc.Bind(dv.EVT_DATAVIEW_ITEM_ACTIVATED, self.on_item_dbclick)
-		self.dvc.Bind(dv.EVT_DATAVIEW_ITEM_EDITING_DONE, self.on_edit_done)
-		self.dvc.Bind(dv.EVT_DATAVIEW_ITEM_EDITING_STARTED, self.on_edit_start)
-		self.dvc.Bind(dv.EVT_DATAVIEW_ITEM_CONTEXT_MENU, self.on_popup_menu)
+		# self.dvc.Bind(dv.EVT_DATAVIEW_ITEM_EDITING_DONE, self.on_edit_done)
+		# self.dvc.Bind(dv.EVT_DATAVIEW_ITEM_EDITING_STARTED, self.on_edit_start)
+		# self.dvc.Bind(dv.EVT_DATAVIEW_ITEM_CONTEXT_MENU, self.on_popup_menu)
 
 	def on_nagetive(self, e):
 		if self.dvc.ItemCount > 0 and self.parent.mode == ID_MODE_EXPORT:
@@ -73,9 +77,6 @@ class DataView(wx.Panel):
 
 	def on_clear(self, e):
 		self.clear_data()
-
-	def on_replenish(self, e):
-		pass
 
 	def on_popup_menu(self, e):
 		try:
@@ -89,16 +90,17 @@ class DataView(wx.Panel):
 		except Exception as e:
 			pass
 
-	def on_add_negative_samples(self, e):  # 添加负样本
-		pass
+	def on_add_negative(self, e):  # 添加负样本
+		if self.dvc.ItemCount > 0 and self.parent.mode == ID_MODE_EXPORT:
+			an = add_nagetive.NagetiveAddFrame(self.parent)
 
 	def on_add_replenish(self, e):  # 添加补充素材
-		ar = add_replenish.ReplenishAddFrame(self.parent, self.id)
-
-
-	def on_edit_start(self, event):
-		self.last_edit_row = event.EventObject.SelectedRow
-		self.last_edit_col = event.EventObject.GetColumnPosition(event.EventObject.GetCurrentColumn())
+		if self.dvc.ItemCount > 0:
+			ids = [self.dvc.GetValue(r, 1) for r in range(self.dvc.ItemCount) if self.dvc.GetValue(r, 0)]
+			f = wx.Frame(None, -1, '添加补充素材')
+			f.SetSize((500, 400))
+			ar = add_replenish.ReplenishAdd(f, self.log, main_view_obj=self.parent, objects=self.parent.last_query_objects, ids=ids, statistics_data=self.parent.statistics_panel.get_data(is_data=False), data_view_obj=self)
+			f.Show()
 
 	def on_item_dbclick(self, event):
 		if self.mode == 1:
@@ -113,29 +115,6 @@ class DataView(wx.Panel):
 			if os.path.exists(_path):
 				self.parent.image_panel.set_image(_path)
 				self.parent.on_show_image_view()
-
-	def on_save(self, evt):
-		if len(self.edit_items) > 0:
-			for update in self.edit_items:
-				_sql = 'update dmp.image set image.' + update[0] + ' = ' + str(update[1]) + ' where id=' + str(
-					update[2])
-				self.parent.db_do_sql(_sql, need_commit=True)
-			self.edit_items = list()
-
-	def on_edit_done(self, event):
-		field = self.parent.db_column_info[self.dvc.GetColumn(self.last_edit_col).GetTitle()]['field']
-		try:
-			if self.parent.db_column_info[event.EventObject.GetCurrentColumn().GetTitle()]['type'] == 'int':
-				_new_value = int(event.GetValue())
-			elif self.parent.db_column_info[event.EventObject.GetCurrentColumn().GetTitle()]['type'] == 'varchar':
-				_new_value = str(event.GetValue())
-			image_id = self.dvc.GetValue(self.last_edit_row, 1)
-			self.edit_items.append((field, _new_value, image_id))
-		except Exception as e:
-			self.parent.log.info(repr(e))
-		finally:
-			self.last_edit_row = -1
-			self.last_edit_col = -1
 
 	def on_import(self, evt):
 		if self.parent.mode == 0 and self.dvc.GetItemCount() > 0:
@@ -154,21 +133,35 @@ class DataView(wx.Panel):
 						_insert_image_sql = 'insert into dmp.image (dmp.image.path, dmp.image.code, dmp.image.side, dmp.image.datetime, dmp.image.line, dmp.image.site, dmp.image.width, dmp.image.height, dmp.image.speed, dmp.image.scale, dmp.image.set_type, dmp.image.status, dmp.image.last, dmp.image.tarpaulin, dmp.image.range, dmp.image.weather, dmp.image.quality_level, dmp.image.calibration_info, dmp.image.axel_info, dmp.image.valid) values ("", "' + l[1] + '", "' + l[2] + '","' + datetime.datetime.strptime(l[3],'%Y%m%d%H%M%S').strftime("%Y-%m-%d %H:%M:%S") + '","' + l[4] + '","' + l[5] + '",' + str(l[6]) + ',' + str(l[7]) + ',' + str(l[8]) + ',' + str(l[9]) + ',"' + l[10] + '","' + l[11] + '",' + str(l[12]) + ',' + str(l[13]) + ',' + str(l[14]) + ',"' + str(l[15]) + '",' + str(l[16]) + ',' + str(l[17]) + ',' + str(l[18]) + ',' + str(l[19]) + ');'
 						self.parent.db_do_sql(_insert_image_sql, need_commit=True)
 						_select_image_sql = 'select id from dmp.image where dmp.image.code="' + l[1] + '" and dmp.image.datetime="' + datetime.datetime.strptime(l[3],'%Y%m%d%H%M%S').strftime("%Y-%m-%d %H:%M:%S") + '" and dmp.image.width=' + str(l[6]) + ' and dmp.image.height=' + str(l[7]) + ' and dmp.image.speed=' + str(l[8]) + ' and dmp.image.line="' + l[4] + '"'
-						data = self.parent.db_do_sql(_select_image_sql)[0][0]
-						print(data)
+						_id = self.parent.db_do_sql(_select_image_sql)[0][0]
 						# todo 向服务器发送文件
 		else:
 			r = Wizard.show_import_wizard(self)
 			if r is not None:
 				self.parent.set_import_param(r)
+	
+	def gen_export_works(self, ids, exparams):
+		work = list()
+		for _id in ids:
+			work.append((
+				_id, 
+				exparams['need_cutting'],
+				exparams['need_zoom'],
+				exparams['scale'],
+				exparams['export_path'],
+				self._replenish_data[_id] if self._replenish_data is not None and _id in self._replenish_data.keys() else dict()
+				))
+		return work
+
+			
 
 	def on_export(self, evt):
 		if self.parent.mode == 1 and self.dvc.GetItemCount() > 0:
 			r = Wizard.show_export_wizard(self)
-			if r is not None:
-				self.parent.set_export_param(r)
-			else:
-				self.parent.log.info('')
+			row = self.dvc.GetItemCount()
+			ids = [self.dvc.GetValue(r, 1) for r in range(row) if self.dvc.GetValue(r, 0)]
+			if r is not None and len(ids) > 0:
+				self.parent.to_export(self.gen_export_works(ids, r))
 		elif self.dvc.GetItemCount() == 0:
 			wx.MessageBox('请先检索数据！')
 		else:
@@ -178,19 +171,22 @@ class DataView(wx.Panel):
 		i = 0
 		self.dvc.AppendToggleColumn('选择', width=30, mode=dv.DATAVIEW_CELL_ACTIVATABLE)
 		for key in self.parent.db_column_info.keys():
-			i += 1
+			# i += 1
 			# if i < 14:
 			# 	self.dvc.AppendTextColumn(key, width=100)
 			# else:
 			# 	self.dvc.AppendTextColumn(key, width=100, mode=dv.DATAVIEW_CELL_EDITABLE) # 可编辑
 			self.dvc.AppendTextColumn(key, width=60)
-
+		self.dvc.AppendTextColumn('类型', width=40)
 		for c in self.dvc.Columns:
 			c.Sortable = True
 
 	def clear_data(self):
 		self.dvc.DeleteAllItems()
 		self.parent.clear_statisticspanel_data()
+
+	def set_replenish_data(self, data): # 设置补充操作对象
+		self._replenish_data = data 
 
 	def set_data(self, data, need_clear=True):
 		if data is not None:
@@ -215,3 +211,34 @@ class DataView(wx.Panel):
 					self.dvc.AppendItem(_data)
 			except Exception as e:
 				self.parent.log.info(repr(e))
+
+
+
+
+	# def on_save(self, evt):
+	# 	if len(self.edit_items) > 0:
+	# 		for update in self.edit_items:
+	# 			_sql = 'update dmp.image set image.' + update[0] + ' = ' + str(update[1]) + ' where id=' + str(
+	# 				update[2])
+	# 			self.parent.db_do_sql(_sql, need_commit=True)
+	# 		self.edit_items = list()
+
+	# def on_edit_done(self, event):
+	# 	field = self.parent.db_column_info[self.dvc.GetColumn(self.last_edit_col).GetTitle()]['field']
+	# 	try:
+	# 		if self.parent.db_column_info[event.EventObject.GetCurrentColumn().GetTitle()]['type'] == 'int':
+	# 			_new_value = int(event.GetValue())
+	# 		elif self.parent.db_column_info[event.EventObject.GetCurrentColumn().GetTitle()]['type'] == 'varchar':
+	# 			_new_value = str(event.GetValue())
+	# 		image_id = self.dvc.GetValue(self.last_edit_row, 1)
+	# 		self.edit_items.append((field, _new_value, image_id))
+	# 	except Exception as e:
+	# 		self.parent.log.info(repr(e))
+	# 	finally:
+	# 		self.last_edit_row = -1
+	# 		self.last_edit_col = -1
+
+	# def on_edit_start(self, event):
+	# 	self.last_edit_row = event.EventObject.SelectedRow
+	# 	self.last_edit_col = event.EventObject.GetColumnPosition(event.EventObject.GetCurrentColumn())
+

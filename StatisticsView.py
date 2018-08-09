@@ -29,7 +29,7 @@ class StatisticsView(wx.Panel):
 
 		# b1 = wx.Button(self, label="刷新", name="refresh")
 		# self.Bind(wx.EVT_BUTTON, self.on_refresh, b1)
-		b2 = wx.Button(self, label="返回", name="first")
+		b2 = wx.Button(self, label="恢复", name="first")
 		self.Bind(wx.EVT_BUTTON, self.on_first, b2)
 		# b3 = wx.Button(self, label="导出", name="export")
 		# self.Bind(wx.EVT_BUTTON, self.on_export, b3)
@@ -41,7 +41,7 @@ class StatisticsView(wx.Panel):
 		self.Sizer.Add(btnbox, 0, wx.TOP | wx.BOTTOM, 5)
 		self.dvc.Bind(dv.EVT_DATAVIEW_ITEM_ACTIVATED, self.on_refill_data)
 
-	def fill_data(self, refresh=False, need_clear=True):
+	def fill_data(self, refresh=False, need_clear=True, data_mode=0):
 		if need_clear:
 			self.clear_data()
 		self._all_data = list()
@@ -60,18 +60,30 @@ class StatisticsView(wx.Panel):
 			_sql = 'select * from dmp.image where id in(' + _in_ + ')'
 			self.parent.db_do_sql(_sql, update=True)
 
-		self.sum_result(self._all_data)
+		self.sum_result(self._all_data, data_mode)
 		self.re_fill_enable = True
+	
+	def get_data(self, is_data=True):
+		if is_data:
+			return self.data
+		else:
+			rows = self.dvc.ItemCount
+			_return = list()
+			for r in range(rows):
+				_return.append((self.dvc.GetValue(r, 0), self.dvc.GetValue(r, 1)))
+			return _return
 
-	def sum_result(self, data):
+	def sum_result(self, data, mode):
 		_sum_ = dict()
 		has_item = False
 		for i in range(self.dvc.ItemCount):
-			if self.dvc.GetValue(i, 0) == '素材数量':
+			if self.dvc.GetValue(i, 0) == '素材总量':
 				self.dvc.SetValue(int(self.dvc.GetValue(i, 1)) + len(data), i, 1)
 				has_item = True
 		if not has_item:
-			self.dvc.AppendItem(['素材数量', len(data)])
+			self.dvc.AppendItem(['素材总量', len(data)])
+		if mode == 1:
+			self.dvc.AppendItem(['负样本', len(data)])
 		for item in data:
 			if item is None:
 				continue
@@ -82,8 +94,7 @@ class StatisticsView(wx.Panel):
 							if i[0] not in _sum_.keys():
 								_sum_[i[0]] = 0
 							_sum_[i[0]] += i[1]
-						elif len(self.parent.last_query_objects) > 0 and i[0].split('-')[
-							0] in self.parent.last_query_objects:
+						elif len(self.parent.last_query_objects) > 0 and i[0] in self.parent.last_query_objects:
 							if i[0] not in _sum_.keys():
 								_sum_[i[0]] = 0
 							_sum_[i[0]] += i[1]
@@ -101,8 +112,6 @@ class StatisticsView(wx.Panel):
 		if item != '素材数量':
 			if self.re_fill_enable:
 				self.re_fill_data(item)
-
-		event.Skip()
 
 	def clear_data(self):
 		self.dvc.DeleteAllItems()
@@ -132,10 +141,10 @@ class StatisticsView(wx.Panel):
 			self.re_fill_enable = False
 			self.can_repeat = True
 
-	def set_data(self, data, need_clear=True):
+	def set_data(self, data, need_clear=True, data_mode=0):
 		if data is not None:
 			self.data = data
-			self.fill_data(need_clear=need_clear)
+			self.fill_data(need_clear=need_clear, data_mode=data_mode)
 
 	def on_first(self, event):
 		if self.can_repeat is not None and self.can_repeat:

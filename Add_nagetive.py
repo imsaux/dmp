@@ -10,7 +10,7 @@ class NagetiveAddFrame(wx.Frame):
 		self.SetSize((800, 600))
 		self.SetTitle('添加负样本')
 		self.parent = parent
-		NAP = QueryView.QueryView(self, None, query_items=self.parent.db_column_info, nagetive=True)
+		NAP = QueryView.QueryView(self, query_items=self.parent.db_column_info, nagetive=True)
 		self.Show()
 		# self.Maximize()
 

@@ -4,72 +4,27 @@ import wx.adv
 import PopupControl
 import wx.lib.masked as masked
 import wx.lib.scrolledpanel as scrolled
+import Util
 
 
 class QueryView(scrolled.ScrolledPanel):
-	def __init__(self, parent, log, query_items=None, nagetive=False):
+	def __init__(self, parent, query_items=None, nagetive=False):
 		# wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.CLIP_CHILDREN)
 		scrolled.ScrolledPanel.__init__(self, parent, -1)
 		if query_items is None:
 			return
 		self.query_items = query_items
-		self.log = log
 		self.is_nagetive = nagetive
 		self.parent = parent
 		self.ALL_SIZER = wx.BoxSizer(wx.VERTICAL)
 		self.row = 1
 		self.col = 0
-		self.samples_amount = -1
+		if self.is_nagetive:
+			self.samples_amount = 0
+		else:
+			self.samples_amount = -1
 		checklist = []
 		self.controls = dict()
-		label_type = [
-			'分类',
-			'目标检测',
-			'分割'
-		]
-		label_objects = [
-			'篷布飘起',
-			'篷布',
-			'篷布破损',
-			'火灾',
-			'货物撒漏',
-			'烟雾',
-			'棚车车门开启',
-			'棚车车窗开启',
-			'客车车门',
-			'客车车窗',
-			'敞车下门门栓开启',
-			'车轮',
-			'异物',
-			'非异物',
-			'闲杂人员扒乘',
-			'客车电池箱盖开启',
-			'风管',
-			'闸链',
-			'折角塞门开启',
-			'折角塞门关闭',
-			'罐车盖开启',
-			'卷钢',
-			'尾车特征区',
-			'车厢连接处',
-			'敞车中门'
-		]
-		alarm_type = [
-			'侧面车门',
-			'侧面车窗',
-			'侧面异物',
-			'侧面动车注水口',
-			'走行部尾部软管未吊起',
-			'走行部闸链拉紧',
-			'走行部折角塞门异常',
-			'走行部软管连接异常',
-			'走行部敞车下门门栓异常',
-			'走行部尾车',
-			'顶部异物',
-			'顶部卷钢',
-			'顶部盖开启',
-			'顶部篷布破损'
-		]
 		box_image_title = wx.StaticBox(self, -1, "图片")
 		box_image = wx.StaticBoxSizer(box_image_title, wx.VERTICAL)
 		grid_image = wx.FlexGridSizer(cols=3)
@@ -78,7 +33,7 @@ class QueryView(scrolled.ScrolledPanel):
 			if query_items[item]['field'] in ['id', 'path']:
 				pass # 不出现在查询视图中
 			else:
-				if query_items[item]['field'] == 'datetime':
+				if query_items[item]['field'] == 'date':
 					self.ctr_date_from = PopupControl.PopControl(self, 1, checklist, self, -1, pos=(30, 30))
 					self.ctr_date_to = PopupControl.PopControl(self, 1, checklist, self, -1, pos=(30, 30))
 					st = wx.StaticText( self, -1, ' ≤ 采集日期 ≤ ')
@@ -108,7 +63,7 @@ class QueryView(scrolled.ScrolledPanel):
 				elif query_items[item]['field'] in ['status', 'quality_level', 'line', 'side', 'site', 'weather', 'set_type']:
 					st = wx.StaticText(self, -1, item)
 					_sql = 'SELECT %s FROM image group by %s' %(query_items[item]['field'], query_items[item]['field'])
-					_data = self.parent.db_do_sql(_sql)
+					_data = Util.execute_sql(_sql)
 					_list = [str(x[0]) for x in _data]
 					ctrl = PopupControl.PopControl(self, 2, _list, self, -1, pos=(30, 30))
 					setattr(self, 'ctr'+'_'+query_items[item]['field']+'_select', ctrl)
@@ -118,7 +73,7 @@ class QueryView(scrolled.ScrolledPanel):
 				elif query_items[item]['field'] in ['code']:
 					dct = dict()
 					_sql = 'SELECT distinct %s FROM dmp.image group by %s' %(query_items[item]['field'], query_items[item]['field'])
-					_data = self.parent.db_do_sql(_sql)
+					_data = Util.execute_sql(_sql)
 					_list = [str(x[0]) for x in _data]
 					for c in _list:
 						_kind = ''
@@ -193,8 +148,8 @@ class QueryView(scrolled.ScrolledPanel):
 		grid_label = wx.FlexGridSizer(cols=3)
 		self.label_ctrls = []
 		st = wx.StaticText(self, -1, '标签类型')
-		ctrl = PopupControl.PopControl(self, 2, label_type, self, -1, pos=(30, 30))
-		ctrl.SetValue(label_type[0])
+		ctrl = PopupControl.PopControl(self, 2, Util.label_type, self, -1, pos=(30, 30))
+		# ctrl.SetValue(Util.label_type[0])
 		setattr(self, 'ctr_label_type', ctrl)
 		self.label_ctrls.append((st, None, ctrl))
 
@@ -202,12 +157,12 @@ class QueryView(scrolled.ScrolledPanel):
 			st = wx.StaticText(self, -1, '包含检测项')
 		else:
 			st = wx.StaticText(self, -1, '不包含检测项')
-		ctrl = PopupControl.PopControl(self, 2, label_objects, self, -1, pos=(30, 30))
+		ctrl = PopupControl.PopControl(self, 2, list(Util.label_object.values()), self, -1, pos=(30, 30))
 		setattr(self, 'ctr_label_object', ctrl)
 		self.label_ctrls.append((st, None, ctrl))
 
 		st = wx.StaticText(self, -1, '报警类型')
-		ctrl = PopupControl.PopControl(self, 2, alarm_type, self, -1, pos=(30, 30))
+		ctrl = PopupControl.PopControl(self, 2, Util.alarm_type, self, -1, pos=(30, 30))
 		setattr(self, 'ctr_alarm_type', ctrl)
 		self.label_ctrls.append((st, None, ctrl))
 
@@ -237,9 +192,6 @@ class QueryView(scrolled.ScrolledPanel):
 
 		box_label.Add(grid_label, 0, wx.LEFT|wx.ALL, 5)
 		self.ALL_SIZER.Add(box_label, 0, wx.LEFT|wx.ALL, 5)
-
-
-
 		if not self.is_nagetive:
 			_line_sizer = wx.BoxSizer(wx.HORIZONTAL)
 			self.btn_query = wx.Button(self, -1, '检索')
@@ -274,13 +226,13 @@ class QueryView(scrolled.ScrolledPanel):
 				if data == '':
 					continue
 				if 'date_from' in item:
-					base_sql += ' AND LEFT(date_format(datetime, "%Y%m%d“), 8) >= ' + data
+					base_sql += ' AND LEFT(date_format(date, "%Y%m%d“), 8) >= ' + data
 				elif 'date_to' in item:
-					base_sql += ' AND LEFT(date_format(datetime, "%Y%m%d“), 8) <= ' + data
+					base_sql += ' AND LEFT(date_format(date, "%Y%m%d“), 8) <= ' + data
 				elif 'time_from' in item:
-					base_sql += ' AND LEFT(date_format(datetime, "%k%i%s"), 8) >= ' + ''.join(data.split(':'))
+					base_sql += ' AND LEFT(date_format(date, "%k%i%s"), 8) >= ' + ''.join(data.split(':'))
 				elif 'time_to' in item:
-					base_sql += ' AND LEFT(date_format(datetime, "%k%i%s"), 8) <= ' + ''.join(data.split(':'))
+					base_sql += ' AND LEFT(date_format(date, "%k%i%s"), 8) <= ' + ''.join(data.split(':'))
 				elif 'ctr_other' == item:
 					fields = [self.query_items[x]['field'] for x in data.split(',')]
 					for field in fields:
@@ -372,27 +324,45 @@ class QueryView(scrolled.ScrolledPanel):
 
 						base_sql += ' AND ' + _field + ' in (' + _in_ + ')'
 
-		if self.label_object_value is not None and self.label_type_value is not None:
+		if self.label_type_value is not None:
+			if not self.is_nagetive:
+				base_sql += ' AND id in (SELECT ril.image_id FROM dmp.r_image_label as ril WHERE ril.label_id in (SELECT l.id FROM dmp.label as l WHERE l.type in (' + ','.join(['"'+str(x)+'"' for x in self.label_type_value.split(',')]) + ')))'
+			else:
+				base_sql += ' AND id not in (SELECT ril.image_id FROM dmp.r_image_label as ril WHERE ril.label_id in (SELECT l.id FROM dmp.label as l WHERE l.type in (' + ','.join(['"'+str(x)+'"' for x in self.label_type_value.split(',')]) + ')))'
+
+		if self.label_object_value is not None:
 			_tmp = []
 			for obj in self.label_object_value.split(','):
 				for typ in self.label_type_value.split(','):
 					_tmp.append(obj + '-' + typ)
-
 			if not self.is_nagetive:
-				base_sql += ' AND id in (SELECT ril.image_id FROM dmp.r_image_label as ril WHERE ril.label_id in (SELECT l.id FROM dmp.label as l WHERE l.name in (' + ','.join(['"'+str(x)+'"' for x in self.label_object_value.split(',')]) + ') and l.type in (' + ','.join(['"'+str(x)+'"' for x in self.label_type_value.split(',')]) + ')))'
+				base_sql += ' AND id in (SELECT ril.image_id FROM dmp.r_image_label as ril WHERE ril.label_id in (SELECT l.id FROM dmp.label as l WHERE l.name in (' + ','.join(['"'+str(x)+'"' for x in self.label_object_value.split(',')]) + ')))'
 			else:
-				base_sql += ' AND id not in (SELECT ril.image_id FROM dmp.r_image_label as ril WHERE ril.label_id in (SELECT l.id FROM dmp.label as l WHERE l.name in (' + ','.join(['"'+str(x)+'"' for x in self.label_object_value.split(',')]) + ') and l.type in (' + ','.join(['"'+str(x)+'"' for x in self.label_type_value.split(',')]) + ')))'
+				base_sql += ' AND id not in (SELECT ril.image_id FROM dmp.r_image_label as ril WHERE ril.label_id in (SELECT l.id FROM dmp.label as l WHERE l.name in (' + ','.join(['"'+str(x)+'"' for x in self.label_object_value.split(',')]) + ')))'
 			self.parent.set_query_objects(_tmp)
 
+		#
+		# if self.label_object_value is not None and self.label_type_value is not None:
+		# 	_tmp = []
+		# 	for obj in self.label_object_value.split(','):
+		# 		for typ in self.label_type_value.split(','):
+		# 			_tmp.append(obj + '-' + typ)
+		#
+		# 	if not self.is_nagetive:
+		# 		base_sql += ' AND id in (SELECT ril.image_id FROM dmp.r_image_label as ril WHERE ril.label_id in (SELECT l.id FROM dmp.label as l WHERE l.name in (' + ','.join(['"'+str(x)+'"' for x in self.label_object_value.split(',')]) + ') and l.type in (' + ','.join(['"'+str(x)+'"' for x in self.label_type_value.split(',')]) + ')))'
+		# 	else:
+		# 		base_sql += ' AND id not in (SELECT ril.image_id FROM dmp.r_image_label as ril WHERE ril.label_id in (SELECT l.id FROM dmp.label as l WHERE l.name in (' + ','.join(['"'+str(x)+'"' for x in self.label_object_value.split(',')]) + ') and l.type in (' + ','.join(['"'+str(x)+'"' for x in self.label_type_value.split(',')]) + ')))'
+		# 	self.parent.set_query_objects(_tmp)
+		#
 		try:
 			self.parent.last_data_set = set()
-			if self.is_nagetive and self.samples_amount != -1:
+			if self.is_nagetive:
 				self.parent.db_do_sql(base_sql, update=True, need_clear=True, need_random=self.samples_amount, need_last=True, for_dataview=True)
 			else:
 				self.parent.db_do_sql(base_sql, update=True, need_clear=False if self.is_nagetive else True, need_last=True, for_dataview=True)
 			self.parent.on_show_data_view()
 		except Exception as e:
-			self.log.info(repr(e))
+			Util.LOG.error(repr(e))
 		finally:
 			self.samples_amount = -1
 

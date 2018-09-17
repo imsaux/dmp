@@ -1,13 +1,14 @@
 {
     "db": {
-        "db_ip": "localhost",
+        "db_ip": "172.1.10.86",
         "db_port": 3306,
-        "db_username": "root",
-        "db_password": "P@ssw0rd",
+        "db_username": "user",
+        "db_password": "toectoec",
         "db_name": "dmp"
     },
     "server": {
         "server_ip": "172.1.10.86",
-        "server_port": 9999
+        "server_port": 9999,
+        "server_root": "D:\\"
     }
 }

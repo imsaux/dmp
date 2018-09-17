@@ -3,15 +3,17 @@
 import os
 import PIL.Image as pilImage
 import copy
-import Util
+import ImageUtil
+import uuid
 
 
 class BaseCutting():
-    def __init__(self, file_path, save_dir):
+    def __init__(self, file_path, save_dir, scale):
         self.file_path = None
         self.img = None
         self.regions = list()
         self.train_info = None
+        self.scale = scale
 
         if os.path.exists(file_path):
             self.file_path = file_path
@@ -42,15 +44,13 @@ class BaseCutting():
             else:
                 _img = img.crop(self.regions[i])
             _new_name = '_'.join([str(x) for x in self.regions[i]])
-            path = os.path.join(self.basepath, _new_name + '.jpg')
-            if os.path.exists(path):
-                path = os.path.join(self.basepath, _new_name + '(' + str(i) + ').jpg')
+            path = os.path.join(self.basepath, uuid.uuid4().hex + '_' + _new_name + '_' + str(int(self.scale//0.05)) +  '.jpg')
             _img.save(path)
 
 
 class K_DOOR_Cutting(BaseCutting):
-    def __init__(self, file_path, save_dir):
-        BaseCutting.__init__(self, file_path, save_dir)
+    def __init__(self, file_path, save_dir, scale):
+        BaseCutting.__init__(self, file_path, save_dir, scale)
         
     def cut(self, need_save=True):
         if self.img.width > 2048*2:
@@ -65,8 +65,8 @@ class K_DOOR_Cutting(BaseCutting):
 
 
 class J_OBJECT_Cutting(BaseCutting):
-    def __init__(self, file_path, save_dir):
-        BaseCutting.__init__(self, file_path, save_dir)
+    def __init__(self, file_path, save_dir, scale):
+        BaseCutting.__init__(self, file_path, save_dir, scale)
         if self.train_info is not None and 'side' in self.train_info.keys():
             self.side = self.train_info['side']
         else:
@@ -110,15 +110,15 @@ class J_OBJECT_Cutting(BaseCutting):
 
 
 class Joint_OBJECT_Cutting(BaseCutting):
-    def __init__(self, file_path, save_dir):
-        BaseCutting.__init__(self, file_path, save_dir)
+    def __init__(self, file_path, save_dir, scale):
+        BaseCutting.__init__(self, file_path, save_dir, scale)
 
     def cut(self, need_save=True):
         carbration_x = 0
         carbration_y = 0
         carbration_width = 0
         carbration_height = 0
-        p = Util.ImageBinaryFunc(self.file_path)
+        p = ImageUtil.ImageBinaryFunc(self.file_path)
         p.get_pic_calibration_data(p.read_pic_data())
         p.get_pic_calibration_value_data()
         if p.pic_calibration_value is None:
@@ -173,8 +173,8 @@ class Joint_OBJECT_Cutting(BaseCutting):
 
 
 class T_OBJECT_Cutting(BaseCutting):
-    def __init__(self, file_path, save_dir):
-        BaseCutting.__init__(self, file_path, save_dir)
+    def __init__(self, file_path, save_dir, scale):
+        BaseCutting.__init__(self, file_path, save_dir, scale)
 
     def cut(self, need_save=True):
         img_top = None
@@ -183,7 +183,7 @@ class T_OBJECT_Cutting(BaseCutting):
         carbration_y = 0
         carbration_width = 0
         carbration_height = 0
-        p = Util.ImageBinaryFunc(self.file_path)
+        p = ImageUtil.ImageBinaryFunc(self.file_path)
         p.get_pic_calibration_data(p.read_pic_data())
         p.get_pic_calibration_value_data()
         if p.pic_calibration_value is None:
@@ -244,13 +244,13 @@ class T_OBJECT_Cutting(BaseCutting):
 
         
 class Top_ALL_Cutting(BaseCutting):
-    def __init__(self, file_path, save_dir):
-        BaseCutting.__init__(self, file_path, save_dir)
+    def __init__(self, file_path, save_dir, scale):
+        BaseCutting.__init__(self, file_path, save_dir, scale)
 
     def cut(self, need_save=True):
         carbration_y = 0
         carbration_height = 0
-        p = Util.ImageBinaryFunc(self.file_path)
+        p = ImageUtil.ImageBinaryFunc(self.file_path)
         p.get_pic_calibration_data(p.read_pic_data())
         p.get_pic_calibration_value_data()
         if p.pic_calibration_value is None:
@@ -266,14 +266,14 @@ class Top_ALL_Cutting(BaseCutting):
 
 
 class ZX_ANGLECOCK_Cutting(BaseCutting):
-    def __init__(self, file_path, save_dir):
-        BaseCutting.__init__(self, file_path, save_dir)
+    def __init__(self, file_path, save_dir, scale):
+        BaseCutting.__init__(self, file_path, save_dir, scale)
 
     def cut(self, need_save=True):
         axel_y = 0
         axel_x_offset = 0
         rail_y = 0 
-        p = Util.ImageBinaryFunc(self.file_path)
+        p = ImageUtil.ImageBinaryFunc(self.file_path)
         data = p.read_pic_data()
         p.get_pic_calibration_data(data)
         p.get_pic_calibration_value_data()
@@ -318,8 +318,8 @@ class ZX_ANGLECOCK_Cutting(BaseCutting):
 
 
 class ZX_C_BTMBOLT_Cutting(BaseCutting):
-    def __init__(self, file_path, save_dir):
-        BaseCutting.__init__(self, file_path, save_dir)
+    def __init__(self, file_path, save_dir, scale):
+        BaseCutting.__init__(self, file_path, save_dir, scale)
 
     def cut(self, need_save=True):
         axel_y = 0
@@ -329,7 +329,7 @@ class ZX_C_BTMBOLT_Cutting(BaseCutting):
         carbration_y = 0
         carbration_width = 0
         carbration_height = 0
-        p = Util.ImageBinaryFunc(self.file_path)
+        p = ImageUtil.ImageBinaryFunc(self.file_path)
         data = p.read_pic_data()
         p.get_pic_calibration_data(data)
         p.get_pic_calibration_value_data()
@@ -379,14 +379,14 @@ class ZX_C_BTMBOLT_Cutting(BaseCutting):
 
         
 class ZX_CHAINPIPE_Cutting(BaseCutting):
-    def __init__(self, file_path, save_dir):
-        BaseCutting.__init__(self, file_path, save_dir)
+    def __init__(self, file_path, save_dir, scale):
+        BaseCutting.__init__(self, file_path, save_dir, scale)
 
     def cut(self, need_save=True):
         axel_y = 0
         axel_x_offset = 0
         rail_y = 0 
-        p = Util.ImageBinaryFunc(self.file_path)
+        p = ImageUtil.ImageBinaryFunc(self.file_path)
         data = p.read_pic_data()
         p.get_pic_calibration_data(data)
         p.get_pic_calibration_value_data()
@@ -469,12 +469,12 @@ class ZX_CHAINPIPE_Cutting(BaseCutting):
         if need_save:
             self.save()
             
-# if __name__ == '__main__':
+if __name__ == '__main__':
 #     # t = K_DOOR_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\KYW25G_202.202.202.3_20180215191704_R011_11.jpg')
 #     # t = J_OBJECT_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\J239_202.202.202.3_20180215191704_L001_1.jpg')
-#     t = ZX_CHAINPIPE_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\QG60K_202.202.202.3_20171206112254_ZR016_16.jpg', r'd:\\')
+    t = ZX_CHAINPIPE_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\QG60K_202.202.202.3_20171206112254_ZR016_16.jpg', r'd:\\', 0.78)
 #     # t = Top_ALL_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\QG17DK_202.202.202.2_20170530051910_T014_14.jpg')
 #     # t = T_OBJECT_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\TC70_202.202.202.2_20160510121653_L003_3.jpg')
 #     # t = K_DOOR_Cutting(r'D:\code\jetbrains\pycharm\dmp\tmp\0527276.jpg')
-#     t.cut()
+    t.cut()
 #     # pass

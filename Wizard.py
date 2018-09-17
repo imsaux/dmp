@@ -4,6 +4,7 @@ import wx.adv
 from wx.adv import Wizard as wiz
 from wx.adv import WizardPage
 import os.path
+import Util
 
 
 def makePageTitle(wizPg, title):
@@ -165,6 +166,9 @@ class Import_SetLabelProperty(wx.adv.WizardPage):
             ['客车', '敞车', '棚车', '罐车'], 4, wx.RA_SPECIFY_COLS
         )
         self.sizer.Add(self.rb_kind)
+        self.sizer.Add(wx.StaticText(self, -1, "检测项 ", (20, 10)), 0, wx.ALL, 1)
+        self.ch_object = wx.Choice(self, -1, (100, 50), choices=list(Util.label_object.keys()))
+        self.sizer.Add(self.ch_object)
 
     def on_button_label(self, event):
         dd_image = wx.DirDialog(self, "请选择文件夹",
@@ -281,6 +285,7 @@ def show_import_wizard(parent):
                 result['label_dir'] = page3.tc_label.GetValue()
                 result['image_scale'] = page4.tc_scale.GetValue()
                 result['car_kind'] = page4.rb_kind.GetStringSelection()
+                result['label_obj'] = page4.ch_object.GetStringSelection()
             return result
         else:
             pass
@@ -301,7 +306,7 @@ def show_export_wizard(parent):
             _v = page1.tc_scale.GetValue()
             if _v != '':
                 v = float(_v)
-                if 0 < v < 1:
+                if 0 < v <= 1:
                     result['scale'] = v
             _dir_value = page1.tc_dir.GetValue()
             if os.path.exists(_dir_value):

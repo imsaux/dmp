@@ -1,16 +1,12 @@
 # encoding=utf-8
 
-import datetime
-import os.path
 import wx
 import wx.lib.scrolledpanel as scrolled
+import Util
 
 class SettingView(scrolled.ScrolledPanel):
-    def __init__( self, parent, log ):
+    def __init__( self, parent):
         scrolled.ScrolledPanel.__init__(self, parent, -1)
-        # wx.Panel.__init__( self, parent, -1 )
-        self.log = log
-        # panel = wx.Panel( self, -1 )
         vs = wx.BoxSizer( wx.VERTICAL )
 
         box1_title = wx.StaticBox( self, -1, "数据库" )
@@ -22,10 +18,10 @@ class SettingView(scrolled.ScrolledPanel):
         st2 = wx.StaticText( self, -1, "端口")
         st3 = wx.StaticText( self, -1, "用户名")
         st4 = wx.StaticText( self, -1, "密码")
-        text1 = wx.TextCtrl( self, -1, "" )
-        text2 = wx.TextCtrl( self, -1, "" )
-        text3 = wx.TextCtrl( self, -1, "" )
-        text4 = wx.TextCtrl( self, -1, "" )
+        text1 = wx.TextCtrl( self, -1, Util.DB_IP)
+        text2 = wx.TextCtrl( self, -1, str(Util.DB_PORT))
+        text3 = wx.TextCtrl( self, -1, Util.DB_USERNAME)
+        text4 = wx.TextCtrl( self, -1, Util.DB_USERPASSW0RD)
         self.group1_ctrls.append((st1, text1))
         self.group1_ctrls.append((st2, text2))
         self.group1_ctrls.append((st3, text3))
@@ -45,8 +41,8 @@ class SettingView(scrolled.ScrolledPanel):
         self.group2_ctrls = []
         st1 = wx.StaticText( self, -1, "服务器IP")
         st2 = wx.StaticText( self, -1, "端口")
-        text1 = wx.TextCtrl( self, -1, "" )
-        text2 = wx.TextCtrl( self, -1, "" )
+        text1 = wx.TextCtrl( self, -1, Util.HOST)
+        text2 = wx.TextCtrl( self, -1, str(Util.PORT))
         self.group2_ctrls.append((st1, text1))
         self.group2_ctrls.append((st2, text2))
 
@@ -56,7 +52,6 @@ class SettingView(scrolled.ScrolledPanel):
 
         box2.Add(grid2, 0, wx.LEFT|wx.ALL, 5)
         vs.Add(box2, 0, wx.LEFT|wx.ALL, 5)
-
 
         box3_title = wx.StaticBox(self, -1, "临时目录")
         box3 = wx.StaticBoxSizer(box3_title, wx.VERTICAL)

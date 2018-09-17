@@ -2,22 +2,23 @@
 
 import wx
 import wx.lib.scrolledpanel as scrolled
-import StatisticsView
 import wx.dataview as dv
+import Util
+import copy
+
 
 class ReplenishAdd(scrolled.ScrolledPanel):
-	def __init__(self, parent, log, objects=None, ids=None, statistics_data=None, data_view_obj=None, main_view_obj=None):
+	def __init__(self, parent, objects=None, ids=None, last_data=None, statistics_view_obj=None, data_view_obj=None):
 		# objects 选择的检测项
 		# ids 原图id列表
 		# statistics_data 已有统计数据
 		scrolled.ScrolledPanel.__init__(self, parent, -1)
 		self.parent = parent
-		self.log = log
 		self.objects = objects
-		self.main = main_view_obj
 		self.dataview = data_view_obj
+		self.replenish_data = last_data
 		self.ids = ids
-		self.statistics_data = statistics_data
+		self.statistics_view = statistics_view_obj
 		self.Setting_Sizer = wx.BoxSizer(wx.VERTICAL)
 		self.Information_Sizer = wx.BoxSizer(wx.VERTICAL)
 		self.ALL_SIZER = wx.BoxSizer(wx.HORIZONTAL)
@@ -38,26 +39,31 @@ class ReplenishAdd(scrolled.ScrolledPanel):
 			cb = wx.CheckBox(self, -1, '')
 			setattr(self, item + '_cb', cb)
 			_tmp.append((st, cb))
+			cb.SetValue(True if self.replenish_data is not None and item in self.replenish_data.keys() else False)
 
 			st = wx.StaticText(self, -1, "加噪")
 			tc = wx.TextCtrl(self, -1)
 			setattr(self, item + '_tc1', tc)
 			_tmp.append((st, tc))
+			tc.SetValue(str(self.replenish_data[item][0]) if self.replenish_data is not None and item in self.replenish_data.keys() else '0')
 
 			st = wx.StaticText(self, -1, "去噪")
 			tc = wx.TextCtrl(self, -1)
 			setattr(self, item + '_tc2', tc)
 			_tmp.append((st, tc))
+			tc.SetValue(str(self.replenish_data[item][1]) if self.replenish_data is not None and item in self.replenish_data.keys() else '0')
 
 			st = wx.StaticText(self, -1, "线性变换")
 			tc = wx.TextCtrl(self, -1)
 			setattr(self, item + '_tc3', tc)
 			_tmp.append((st, tc))
+			tc.SetValue(str(self.replenish_data[item][2]) if self.replenish_data is not None and item in self.replenish_data.keys() else '0')
 
 			st = wx.StaticText(self, -1, "非线性变换")
 			tc = wx.TextCtrl(self, -1)
 			setattr(self, item + '_tc4', tc)
 			_tmp.append((st, tc))
+			tc.SetValue(str(self.replenish_data[item][3]) if self.replenish_data is not None and item in self.replenish_data.keys() else '0')
 
 			for item1, item2 in _tmp:
 				grid_object.Add(item1, 0, wx.ALIGN_CENTRE|wx.LEFT|wx.RIGHT|wx.TOP, 5)
@@ -82,45 +88,43 @@ class ReplenishAdd(scrolled.ScrolledPanel):
 		self.dvc.AppendTextColumn('值', width=100)
 		self.Information_Sizer.Add(self.dvc, 1, wx.EXPAND|wx.ALL|wx.LEFT|wx.RIGHT|wx.TOP, 10)
 
+
 	def review(self, e):
-		import copy
-		_tmp = copy.deepcopy(self.statistics_data)
-		_work = self.get_work()
-		for _id in _work.keys():
-			for obj in _work[_id].keys():
-				_sum = sum(_work[_id][obj])
-				for i in range(len(_tmp)):
-					if _tmp[i][0] == obj:
-						_new_value = (obj, str(_tmp[i][1]+_sum*_tmp[i][1]) + ' （含补充素材 ' + str(_sum*_tmp[i][1]) + ' ）')
-						_tmp[i] = _new_value
 		self.dvc.DeleteAllItems()
-		for i in _tmp:
-			self.dvc.AppendItem(i)
+		_tmp = self.get_work()
+		for _key in _tmp.keys():
+			self.dvc.AppendItem((_key, _tmp[_key]))
+		self.replenish_data = _tmp
 
 	def get_work(self):
-		self.replenish_value = dict()
+		self.replenish_data = dict()
+		_tmp = copy.deepcopy(self.statistics_view.to_dict())
+
 		for ctrl in dir(self):
 			if '_cb' in ctrl:
 				if getattr(self, ctrl).IsChecked():
 					name = ctrl.split('_')[0] + '_tc'
 					v = list()
 					for i in range(4):
-						ctl = getattr(self, name + str(i+1))
-						if ctl.GetValue() != '':
-							try:
+						try:
+							ctl = getattr(self, name + str(i + 1))
+							if ctl.GetValue() != '':
 								v.append(int(ctl.GetValue()))
-							except Exception as e:
+							else:
 								v.append(0)
-					self.replenish_value[ctrl.split('_')[0]] = v
-		works = dict()
-		for key in self.replenish_value.keys():
-			_id = self.get_id_by_label(key)
-			if _id is not None:
-				for i in _id:
-					if i not in works.keys():
-						works[i] = dict()
-					works[i][key] = self.replenish_value[key]
-		return works
+						except Exception as e:
+							v.append(0)
+					self.replenish_data[ctrl.split('_')[0]] = v
+		self.dataview.set_replenish_data(self.replenish_data)
+		for obj in self.replenish_data.keys():
+			_sum = sum(self.replenish_data[obj])
+			for _key in _tmp.keys():
+				if _key == obj:
+					_new_value = str(_tmp[_key] + _sum * _tmp[_key]) + ' (含补充素材 ' + str(_sum * _tmp[_key]) + ')'
+					_tmp[_key] = _new_value
+					break
+
+		return _tmp
 
 	def get_in_sql(self, iters):
 		_in_ = ''
@@ -135,9 +139,7 @@ class ReplenishAdd(scrolled.ScrolledPanel):
 		_in = self.get_in_sql(self.ids)
 		# _sql = 'select image_id from dmp.r_image_label where image_id ' + _in + ' and label_id in(select id from dmp.label where name="' + lbl_name + '")'
 		_sql = 'select image_id from dmp.r_image_label where image_id ' + _in + ' and label_id in(select id from dmp.label where name="' + lbl.split('-')[0] + '" and type="' + lbl.split('-')[1] + '")'
-		if self.main is None:
-			return None
-		data = self.main.db_do_sql(_sql)
+		data = Util.execute_sql(_sql)
 		if len(data) > 0:
 			return [i[0] for i in data]
 		else:
@@ -145,6 +147,5 @@ class ReplenishAdd(scrolled.ScrolledPanel):
 
 	def doit(self, e):
 		_work = self.get_work()
-		if self.dataview is not None:
-			self.dataview.set_replenish_data(_work)
+		self.statistics_view.from_dict(_work)
 		self.parent.Destroy()

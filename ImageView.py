@@ -3,39 +3,29 @@ import wx
 import copy
 import os
 import PopupControl
-
-ID_NONE = 1
-ID_CAR_CALIBRATION = 2
-ID_AXLE_Y_CALIBRATION = 3
-ID_AXLE_X_CALIBRATION = 4
-ID_RAIL_Y_CALIBRATION = 5
-ID_B_LABEL = 6 # 目标检测
-ID_G_LABEL = 7 # 分类
-ID_P_LABEL = 8 # 分割
-ID_OUTLINE_CALIBRATION = 9
-ID_NEW_AXLE_CALIBRATION = 10
+import ImageUtil
+import Util
 
 
 class ImageView(wx.Panel):
-    def __init__(self, parent, log, file_path=None):
+    def __init__(self, parent, file_path=None):
         wx.Panel.__init__(self, parent, wx.ID_ANY, style=wx.CLIP_CHILDREN)
         self.background = wx.Brush(self.GetBackgroundColour())
-        self.log = log
         self.start_pos = None
         self.end_pos = None
         self.overlay = wx.Overlay()
         self.parent = parent
         self.objects = {
-            ID_CAR_CALIBRATION: [],
-            ID_AXLE_X_CALIBRATION: [],
-            ID_AXLE_Y_CALIBRATION: [],
-            ID_RAIL_Y_CALIBRATION: [],
-            ID_OUTLINE_CALIBRATION: [],
-            ID_NEW_AXLE_CALIBRATION: [],
-            ID_B_LABEL: [],
-            ID_P_LABEL: [],
-            ID_G_LABEL: [],
-            ID_NONE: []
+            ImageUtil.ID_CAR_CALIBRATION: [],
+            ImageUtil.ID_AXLE_X_CALIBRATION: [],
+            ImageUtil.ID_AXLE_Y_CALIBRATION: [],
+            ImageUtil.ID_RAIL_Y_CALIBRATION: [],
+            ImageUtil.ID_OUTLINE_CALIBRATION: [],
+            ImageUtil.ID_NEW_AXLE_CALIBRATION: [],
+            ImageUtil.ID_B_LABEL: [],
+            ImageUtil.ID_P_LABEL: [],
+            ImageUtil.ID_G_LABEL: [],
+            ImageUtil.ID_NONE: []
         }
         self.zoom_ratio = 0
         self.unit_ratio = 0.25
@@ -44,7 +34,7 @@ class ImageView(wx.Panel):
             self.to_show = wx.Bitmap(file_path)
         else:
             self.to_show = None
-        self.draw_mode = ID_NONE
+        self.draw_mode = ImageUtil.ID_NONE
         view_object = [
             "车厢",
             "车轴中心",
@@ -117,29 +107,29 @@ class ImageView(wx.Panel):
             pass
         self.Refresh()
 
-    def set_draw_mode(self, event=None, mode=ID_NONE):
+    def set_draw_mode(self, event=None, mode=ImageUtil.ID_NONE):
         if event is not None:
             name = event.EventObject.StringSelection
             if name == "车厢标定":
-                self.draw_mode = ID_CAR_CALIBRATION
+                self.draw_mode = ImageUtil.ID_CAR_CALIBRATION
             elif name == "车轴标定":
-                self.draw_mode = ID_AXLE_Y_CALIBRATION
+                self.draw_mode = ImageUtil.ID_AXLE_Y_CALIBRATION
             elif name == "铁轨标定":
-                self.draw_mode = ID_RAIL_Y_CALIBRATION
+                self.draw_mode = ImageUtil.ID_RAIL_Y_CALIBRATION
             elif name == "轮廓标定":
-                self.draw_mode = ID_OUTLINE_CALIBRATION
+                self.draw_mode = ImageUtil.ID_OUTLINE_CALIBRATION
             elif name == "调整车轴":
-                self.draw_mode = ID_AXLE_X_CALIBRATION
+                self.draw_mode = ImageUtil.ID_AXLE_X_CALIBRATION
             elif name == "添加车轴":
-                self.draw_mode = ID_NEW_AXLE_CALIBRATION
+                self.draw_mode = ImageUtil.ID_NEW_AXLE_CALIBRATION
             elif name == "分类标签":
-                self.draw_mode = ID_G_LABEL
+                self.draw_mode = ImageUtil.ID_G_LABEL
             elif name == "目标检测标签":
-                self.draw_mode = ID_B_LABEL
+                self.draw_mode = ImageUtil.ID_B_LABEL
             elif name == "分割标签":
-                self.draw_mode = ID_P_LABEL
+                self.draw_mode = ImageUtil.ID_P_LABEL
             else:
-                self.draw_mode = ID_NONE
+                self.draw_mode = ImageUtil.ID_NONE
         else:
             self.draw_mode = mode
 
@@ -176,15 +166,14 @@ class ImageView(wx.Panel):
             else:
                 img = img.Scale(self.GetClientSize()[0], self.GetClientSize()[1])
             bmp = wx.Bitmap(img)
-            print(self.show_pos, self.diff)
             dc.DrawBitmap(bmp, self.show_pos[0] + self.diff[0], self.show_pos[1] + self.diff[1])
 
     def draw_car_calibration(self, dc):
         # 车厢
         try:
-            self.draw_rect(dc, id=ID_CAR_CALIBRATION, color=wx.RED, style=wx.PENSTYLE_SOLID)
+            self.draw_rect(dc, id=ImageUtil.ID_CAR_CALIBRATION, color=wx.RED, style=wx.PENSTYLE_SOLID)
         except Exception as e:
-            pass
+            Util.LOG.error(repr(e))
 
     def draw_axel_y_calibration(self, dc):
         # 车轴
@@ -192,10 +181,10 @@ class ImageView(wx.Panel):
             x, y = self.GetClientSize()
             p1 = 0, self.end_pos[1]
             p2 = x, self.end_pos[1]
-            self.draw_line(dc, p1, p2, id=ID_AXLE_Y_CALIBRATION, color=wx.YELLOW, style=wx.PENSTYLE_SOLID)
+            self.draw_line(dc, p1, p2, id=ImageUtil.ID_AXLE_Y_CALIBRATION, color=wx.YELLOW, style=wx.PENSTYLE_SOLID)
         except Exception as e:
-            pass
-
+            Util.LOG.error(repr(e))
+    
     def draw_axel_x_calibration(self, dc):
         # 调整车轴
         try:
@@ -206,7 +195,7 @@ class ImageView(wx.Panel):
             # 查询图片中车轴信息，并依次显示
             self.draw_line(dc, p1, p2, color=wx.YELLOW, style=wx.PENSTYLE_SOLID)
         except Exception as e:
-            pass
+            Util.LOG.error(repr(e))
 
     def draw_rail_y_calibration(self, dc, id):
         # 铁轨
@@ -216,9 +205,9 @@ class ImageView(wx.Panel):
             p2 = x, self.end_pos[1]
             self.draw_line(dc, p1, p2, id=id, color=wx.BLUE, style=wx.PENSTYLE_SOLID)
         except Exception as e:
-            pass
+            Util.LOG.error(repr(e))
 
-    def draw_rect(self, dc, rect=None, id=ID_NONE, color=wx.RED, style=wx.PENSTYLE_SOLID, alpha=125):  # 画矩形透明区域
+    def draw_rect(self, dc, rect=None, id=ImageUtil.ID_NONE, color=wx.RED, style=wx.PENSTYLE_SOLID, alpha=125):  # 画矩形透明区域
         # dc -> 绘图上下文，必需
         # rect -> wx.Rect类型，由外部传入
         # id -> int类型，标识图形类别
@@ -255,12 +244,10 @@ class ImageView(wx.Panel):
 
 
         except Exception as e:
-            pass  # todo log
+            Util.LOG.error(repr(e))
 
-    def draw_line(self, dc, p1, p2, id=ID_NONE, color=wx.RED, style=wx.PENSTYLE_SOLID):
-        dc.SetPen(wx.Pen(colour=color,
-                        #  width=self.overlayPenWidth.GetValue(),
-                         style=style))
+    def draw_line(self, dc, p1, p2, id=ImageUtil.ID_NONE, color=wx.RED, style=wx.PENSTYLE_SOLID):
+        dc.SetPen(wx.Pen(colour=color, style=style))
         x1, y1 = p1
         x2, y2 = p2
         dc.DrawLine(
@@ -280,11 +267,9 @@ class ImageView(wx.Panel):
     def on_mouse_move(self, event):
         # 绘图
         if event.Dragging() and event.LeftIsDown():
-            print("on_mouse_move_draw_in")
-            if self.draw_mode == ID_CAR_CALIBRATION:
+            if self.draw_mode == ImageUtil.ID_CAR_CALIBRATION:
                 self.end_pos = event.GetPosition()
                 self.Refresh()
-            print("on_mouse_move_draw_out")
 
         # 拖动
         if event.Dragging() and event.RightIsDown():
@@ -318,13 +303,12 @@ class ImageView(wx.Panel):
         self.Refresh()
 
     def draw_objects(self, dc):
-        if len(self.objects[ID_CAR_CALIBRATION])>0:
-            rect = self.objects[ID_CAR_CALIBRATION][-1]
+        if len(self.objects[ImageUtil.ID_CAR_CALIBRATION]) > 0:
+            rect = self.objects[ImageUtil.ID_CAR_CALIBRATION][-1]
             x = rect.GetX()
             y = rect.GetY()
             rect.SetX(x + self.macro_diff[0])
             rect.SetY(y + self.macro_diff[1])
-            print((x, y), self.macro_diff)
             self.draw_rect(dc, rect=rect)
 
     def on_paint(self, event):
@@ -333,8 +317,8 @@ class ImageView(wx.Panel):
         self.draw_background_image(dc)
         self.draw_objects(dc)
         if self.dragable is False:
-            if self.draw_mode == ID_CAR_CALIBRATION:
-                self.draw_rect(dc, id=ID_CAR_CALIBRATION)
+            if self.draw_mode == ImageUtil.ID_CAR_CALIBRATION:
+                self.draw_rect(dc, id=ImageUtil.ID_CAR_CALIBRATION)
 
 
 class test(wx.Panel):
@@ -346,22 +330,22 @@ class test(wx.Panel):
         self.overlay = wx.Overlay()
         self.parent = parent
         self.objects = {
-            ID_CAR_CALIBRATION: [],
-            ID_AXLE_X_CALIBRATION: [],
-            ID_AXLE_Y_CALIBRATION: [],
-            ID_RAIL_Y_CALIBRATION: [],
-            ID_OUTLINE_CALIBRATION: [],
-            ID_NEW_AXLE_CALIBRATION: [],
-            ID_B_LABEL: [],
-            ID_P_LABEL: [],
-            ID_G_LABEL: [],
-            ID_NONE: []
+            ImageUtil.ID_CAR_CALIBRATION: [],
+            ImageUtil.ID_AXLE_X_CALIBRATION: [],
+            ImageUtil.ID_AXLE_Y_CALIBRATION: [],
+            ImageUtil.ID_RAIL_Y_CALIBRATION: [],
+            ImageUtil.ID_OUTLINE_CALIBRATION: [],
+            ImageUtil.ID_NEW_AXLE_CALIBRATION: [],
+            ImageUtil.ID_B_LABEL: [],
+            ImageUtil.ID_P_LABEL: [],
+            ImageUtil.ID_G_LABEL: [],
+            ImageUtil.ID_NONE: []
         }
         self.zoom_ratio = 0
         self.unit_ratio = 0.25
         self.show_pos = 0, 0
         self.to_show = wx.Bitmap(file_path)
-        self.draw_mode = ID_NONE
+        self.draw_mode = ImageUtil.ID_NONE
         list = [
             "请选择",
             "车厢标定",
@@ -429,29 +413,29 @@ class test(wx.Panel):
             pass
         self.Refresh()
 
-    def set_draw_mode(self, event=None, mode=ID_NONE):
+    def set_draw_mode(self, event=None, mode=ImageUtil.ID_NONE):
         if event is not None:
             name = event.EventObject.StringSelection
             if name == "车厢标定":
-                self.draw_mode = ID_CAR_CALIBRATION
+                self.draw_mode = ImageUtil.ID_CAR_CALIBRATION
             elif name == "车轴标定":
-                self.draw_mode = ID_AXLE_Y_CALIBRATION
+                self.draw_mode = ImageUtil.ID_AXLE_Y_CALIBRATION
             elif name == "铁轨标定":
-                self.draw_mode = ID_RAIL_Y_CALIBRATION
+                self.draw_mode = ImageUtil.ID_RAIL_Y_CALIBRATION
             elif name == "轮廓标定":
-                self.draw_mode = ID_OUTLINE_CALIBRATION
+                self.draw_mode = ImageUtil.ID_OUTLINE_CALIBRATION
             elif name == "调整车轴":
-                self.draw_mode = ID_AXLE_X_CALIBRATION
+                self.draw_mode = ImageUtil.ID_AXLE_X_CALIBRATION
             elif name == "添加车轴":
-                self.draw_mode = ID_NEW_AXLE_CALIBRATION
+                self.draw_mode = ImageUtil.ID_NEW_AXLE_CALIBRATION
             elif name == "分类标签":
-                self.draw_mode = ID_G_LABEL
+                self.draw_mode = ImageUtil.ID_G_LABEL
             elif name == "目标检测标签":
-                self.draw_mode = ID_B_LABEL
+                self.draw_mode = ImageUtil.ID_B_LABEL
             elif name == "分割标签":
-                self.draw_mode = ID_P_LABEL
+                self.draw_mode = ImageUtil.ID_P_LABEL
             else:
-                self.draw_mode = ID_NONE
+                self.draw_mode = ImageUtil.ID_NONE
         else:
             self.draw_mode = mode
 
@@ -492,7 +476,7 @@ class test(wx.Panel):
         try:
             self.draw_rect(dc, id=id, color=wx.RED, style=wx.PENSTYLE_SOLID)
         except Exception as e:
-            pass
+            Util.LOG.error(repr(e))
 
     def draw_axel_y_calibration(self, dc, id):
         # 车轴
@@ -502,7 +486,7 @@ class test(wx.Panel):
             p2 = x, self.end_pos[1]
             self.draw_line(dc, p1, p2, id=id, color=wx.YELLOW, style=wx.PENSTYLE_SOLID)
         except Exception as e:
-            pass
+            Util.LOG.error(repr(e))
 
     def draw_axel_x_calibration(self, dc, id):
         # 调整车轴
@@ -513,7 +497,7 @@ class test(wx.Panel):
             p2 = x, self.end_pos[1]
             self.draw_line(dc, p1, p2, id=id, color=wx.YELLOW, style=wx.PENSTYLE_SOLID)
         except Exception as e:
-            pass
+            Util.LOG.error(repr(e))
 
     def draw_rail_y_calibration(self, dc, id):
         # 铁轨
@@ -523,9 +507,9 @@ class test(wx.Panel):
             p2 = x, self.end_pos[1]
             self.draw_line(dc, p1, p2, id=id, color=wx.BLUE, style=wx.PENSTYLE_SOLID)
         except Exception as e:
-            pass
+            Util.LOG.error(repr(e))
 
-    def draw_rect(self, dc, rect=None, id=ID_NONE, color=wx.RED, style=wx.PENSTYLE_SOLID):  # 画矩形透明区域
+    def draw_rect(self, dc, rect=None, id=ImageUtil.ID_NONE, color=wx.RED, style=wx.PENSTYLE_SOLID):  # 画矩形透明区域
         # dc -> 绘图上下文，必需
         # rect -> wx.Rect类型，由外部传入
         # id -> int类型，标识图形类别
@@ -551,9 +535,9 @@ class test(wx.Panel):
             self.objects[id].append(rect)
 
         except Exception as e:
-            pass  # todo log
+            Util.LOG.error(repr(e))
 
-    def draw_line(self, dc, p1, p2, id=ID_NONE, color=wx.RED, style=wx.PENSTYLE_SOLID):
+    def draw_line(self, dc, p1, p2, id=ImageUtil.ID_NONE, color=wx.RED, style=wx.PENSTYLE_SOLID):
         dc.SetPen(wx.Pen(colour=color,
                          width=self.overlayPenWidth.GetValue(),
                          style=style))
@@ -609,14 +593,14 @@ class test(wx.Panel):
     def on_paint(self, event):
         dc = wx.BufferedPaintDC(self)
         self.draw_background_image(dc)
-        if self.draw_mode == ID_CAR_CALIBRATION:
+        if self.draw_mode == ImageUtil.ID_CAR_CALIBRATION:
             self.draw_rect(dc)
 
 
 if __name__ == '__main__':
     app = wx.App()
     win = wx.Frame(None, title="图像处理", size=(800, 600))
-    file_path = 'E:\\code\\jetbrains\\pycharm\\test\\C70_202.202.202.3_20170420073727_L006_6.jpg'
+    file_path = 'D:\\code\\jetbrains\\pycharm\\test\\C70_202.202.202.3_20170420073727_L006_6.jpg'
     p = test(win, file_path)
     # p = ImagePanel(win, file_path)
     win.Show()

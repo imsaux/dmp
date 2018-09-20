@@ -113,7 +113,7 @@ class DataView(wx.Panel):
 				c.get_data(int(_id), Util.ORIGIN_DIR)
 				_img = os.path.join(Util.ORIGIN_DIR, os.path.basename(img))
 				if os.path.exists(_img):
-					self.parent.image_panel.set_image(img)
+					self.parent.image_panel.set_image(_img)
 					self.parent.on_show_image_view()
 		if self.parent.mode == 0:
 			_path = event.EventObject.GetTextValue(event.EventObject.SelectedRow, 2)
@@ -546,7 +546,7 @@ class DataView(wx.Panel):
 			ids = [self.dvc.GetValue(r, 1) for r in range(row) if self.dvc.GetValue(r, 0)]
 			if r is not None and len(ids) > 0:
 				# for w in self.gen_export_works(ids, r):
-				# 	self.parent.thread_work(self.parent.to_export, (w,))
+				# self.parent.process_work(self.parent.to_export, (self.gen_export_works(ids, r),))
 				self.parent.to_export(self.gen_export_works(ids, r))
 		elif self.dvc.GetItemCount() == 0:
 			wx.MessageBox('请先检索数据！')

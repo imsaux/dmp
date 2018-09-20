@@ -18,7 +18,7 @@ import Client
 import copy
 import random
 import inspect
-import threading
+from multiprocessing import Process
 
 ID_Image_view = wx.NewId()
 ID_Data_view = wx.NewId()
@@ -113,10 +113,9 @@ class MainFrame(wx.Frame):
 	def set_mode(self, value):
 		self.mode = value
 
-	def thread_work(self, func, args):
-		_t = threading.Thread(target=func, args=args)
-		_t.daemon = True
-		_t.start()
+	def process_work(self, func, args):
+		_p = Process(target=func, args=args)
+		_p.start()
 
 	def to_export(self, works):
 		work_result = list()
@@ -129,14 +128,14 @@ class MainFrame(wx.Frame):
 					Util.LOG.error(repr(e))
 					Util.LOG.debug(repr(works))
 
-		with concurrent.futures.ThreadPoolExecutor() as executor:
-			fs = {executor.submit(self.e_to_cutting, w): w for w in works}
-			for future in concurrent.futures.wait(fs, return_when=concurrent.futures.ALL_COMPLETED):
-				try:
-					work_result.append(future.result())
-				except Exception as e:
-					Util.LOG.error(repr(e))
-					Util.LOG.debug(repr(works))
+		# with concurrent.futures.ThreadPoolExecutor() as executor:
+		# 	fs = {executor.submit(self.e_to_cutting, w): w for w in works}
+		# 	for future in concurrent.futures.wait(fs, return_when=concurrent.futures.ALL_COMPLETED):
+		# 		try:
+		# 			work_result.append(future.result())
+		# 		except Exception as e:
+		# 			Util.LOG.error(repr(e))
+		# 			Util.LOG.debug(repr(works))
 
 
 	def e_to_process(self): # 图像处理

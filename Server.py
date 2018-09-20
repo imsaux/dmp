@@ -26,7 +26,7 @@ class DmpTCPRequestHandler(socketserver.BaseRequestHandler):
 					_path = Util.execute_sql('select dmp.image.path from dmp.image where dmp.image.id=%s', args=table_id)[0][0]
 				elif jpg_or_png == 1:
 					_path = Util.execute_sql('select dmp.r_image_label.data  from dmp.r_image_label where dmp.r_image_label.id=%s', args=table_id)[0][0]
-				if not os.path.exists(_path):
+				if not os.path.exists(os.path.normpath(_path)):
 					Util.LOG.debug('无效路径')
 					Util.LOG.debug(repr(_path))
 					return

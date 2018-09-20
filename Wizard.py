@@ -57,7 +57,8 @@ class Import_Select_mode(wx.adv.WizardPage):
             self.next.GetNext().SetPrev(self)
             return self.next.GetNext()
         else:
-            self.next.GetNext().SetPrev(self)
+            if hasattr(self.next, 'GetNext'):
+	            self.next.GetNext().SetPrev(self)
             return self.next
 
     def GetPrev(self):

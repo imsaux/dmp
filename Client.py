@@ -4,6 +4,7 @@ import socket
 import struct
 import os
 import threading
+import Util
 
 
 lock = threading.Lock()
@@ -14,12 +15,14 @@ class Client:
 		self.s = socket.socket()
 		self.ip = ip
 		self.port = port
+		self.thread = threading.current_thread()
 
 	def get_data(self, table_id, save_path, jpg_or_png=0, save_mode=0):
 		# table_id -> 对应表id
 		# jpg_or_png -> 0-jpg 1-png
 		# save_path -> 保存文件夹
 		# save_mode -> 0-生成文件 1-二进制数据
+		Util.LOG.info('Client.get_data（%s）-> %s, %s, %s' % (str(self.thread.ident), str(table_id), save_path, str(jpg_or_png)))
 		self.s.connect((self.ip, self.port))
 		lock.acquire()
 		self.s.send(b'get')
@@ -38,7 +41,7 @@ class Client:
 					while True:
 						if file_size > 1024:
 							lock.acquire()
-							data = self.s.recv(1024) # todo binary
+							data = self.s.recv(1024)
 							lock.release()
 							fw.write(data)
 						else:
@@ -56,6 +59,7 @@ class Client:
 		# image_path -> 本地图像路径
 		# table_id -> 对应表id
 		# jpg_or_png -> 0-jpg 1-png
+		Util.LOG.info('Client.put_data（%s）-> %s, %s, %s' % (str(self.thread.ident), str(table_id), image_path, str(jpg_or_png)))
 		self.s.connect((self.ip, self.port))
 		lock.acquire()
 		self.s.send(b'put')
@@ -78,6 +82,6 @@ class Client:
 								self.s.send(data)
 								lock.release()
 					except Exception as e:
-						pass
+						Util.LOG.error(repr(e))
 		self.s.shutdown(2)
 		self.s.close()

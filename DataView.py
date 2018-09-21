@@ -14,16 +14,114 @@ import Add_nagetive
 import Add_replenish
 import CarClassification
 import PIL.Image
-import threading
+from threading import Thread, Lock
+from wx.lib.pubsub import pub
 import concurrent.futures
 import Util
 import Client
-
+import Cutting
+import inspect
 
 ID_MODE_IMPORT = 0
 ID_MODE_EXPORT = 1
 
-mutex = threading.Lock()
+mutex = Lock()
+
+
+class UI_thread(Thread):
+	def __init__(self, mode, args, objs):
+		Thread.__init__(self)
+		self.mode = mode
+		self.args = args
+		self.query_objs = objs
+		self.start()
+
+	def run(self):
+		if self.mode == 0:
+			self.to_import(self.args)
+		elif self.mode == 1:
+			self.to_export(self.args)
+
+	def e_to_send(self, work):
+		c = Client.Client(Util.HOST, Util.PORT)
+		c.put_data(work[0], work[1][0])
+		if len(work[2]) > 0:
+			for _type in work[2].keys():
+				if work[2]['type'] == 'S':
+					_type = '分割'
+				else:
+					return work[1][0]
+				for _data in work[2][_type]:
+					_get_path_sql = 'select dmp.r_image_label.id, dmp.r_image_label.data from dmp.r_image_label where dmp.r_image_label.image_id=%s and dmp.r_image_label.label_id=(select dmp.label.id from dmp.label where dmp.label.type=%s and dmp.label.name=%s)'
+					_result = Util.execute_sql(_get_path_sql, args=(work[1][0], _type, Util.label_object[_data[0]]))[0]
+					c.put_data(_result[1], _result[0], 1)
+		wx.CallAfter(pub.sendMessage, 'import', msg=str(work[0]))
+		return work[1][0]
+
+	def to_import(self, works):  # 导入流程
+		work_result = list()
+		with concurrent.futures.ThreadPoolExecutor() as executor:
+			fs = {executor.submit(self.e_to_send, w): w for w in works[0]}
+			for future in concurrent.futures.as_completed(fs):
+				try:
+					work_result.append(future.result())
+				except Exception as e:
+					Util.LOG.error(repr(e))
+
+	def e_to_recv(self, work):
+		c = Client.Client(Util.HOST, Util.PORT)
+		c.get_data(work[0], work[4])
+		wx.CallAfter(pub.sendMessage, 'export', mode='recv', msg=str(work[0]))
+		return work[0]
+
+	def to_export(self, works):  # 导出流程
+		work_result = list()
+
+		# 传输
+		with concurrent.futures.ThreadPoolExecutor() as executor:
+			fs = {executor.submit(self.e_to_recv, w): w for w in works[0]}
+			for future in concurrent.futures.wait(fs, return_when=concurrent.futures.ALL_COMPLETED):
+				try:
+					work_result.append(future.result())
+				except Exception as e:
+					Util.LOG.error(repr(e))
+					Util.LOG.debug(repr(works))
+
+		# with concurrent.futures.ThreadPoolExecutor() as executor:
+		# 	fs = {executor.submit(self.e_to_cutting, w): w for w in works}
+		# 	for future in concurrent.futures.wait(fs, return_when=concurrent.futures.ALL_COMPLETED):
+		# 		try:
+		# 			work_result.append(future.result())
+		# 		except Exception as e:
+		# 			Util.LOG.error(repr(e))
+		# 			Util.LOG.debug(repr(works))
+
+	def e_to_process(self, work):  # 图像处理
+		pass
+
+	def e_to_zoom(self, work):  # 缩放
+		pass
+
+	def e_to_cutting(self, work):  # 裁剪
+		# work -> 图像地址
+		if isinstance(self.query_objs, set) and len(self.query_objs) > 0:
+			_methods = []
+			for obj in [obj.split('-')[0] for obj in self.query_objs]:
+				if obj in Util.cutting_relation['object'].keys():
+					_methods.append(Util.cutting_relation['object'][obj])
+			_tmp = []
+			[_tmp.extend(x) for x in _methods]
+			_methods = set(_tmp)
+			if len(_methods) == 1:  # 进行裁剪
+				for r, d, f in os.walk(Util.CUTTING_DIR):
+					for _file in f:
+						os.remove(_file)
+					break
+				_all_ = inspect.getmembers(Cutting)
+				_cls = [i[1] for i in _all_ if i[0] == list(_methods)[0]][0]
+				_t = _cls(work, Util.CUTTING_DIR)
+				_t.cut()
+				wx.CallAfter(pub.sendMessage, 'export', mode='cutting', msg=str(work))
 
 
 class DataView(wx.Panel):
@@ -32,6 +130,22 @@ class DataView(wx.Panel):
 		self.parent = parent
 		self.data = data
 		self.mode = mode
+		self.info = {
+			'import': {
+				'send': [],
+				'_send': 0
+			},
+			'export': {
+				'cutting': [],
+				'process': [],
+				'zoom': [],
+				'recv': [],
+				'_cutting': 0,
+				'_process': 0,
+				'_zoom': 0,
+				'_recv': 0
+			}
+		}
 		self.id = -1
 		self.edit_items = list()
 		self.import_data = dict()
@@ -65,12 +179,29 @@ class DataView(wx.Panel):
 		self.bind_event()
 		if self.data is not None:
 			self.set_data(self.data)
+		pub.subscribe(self.update_export, 'export')
+		pub.subscribe(self.update_import, 'import')
+
+	def update_export(self, mode, msg):
+		self.info['export'][mode].append(msg)
+		comment = ''
+		if mode == 'recv':
+			comment = '已传输：'
+		elif mode == 'cutting':
+			comment = '已裁剪：'
+		elif mode == 'process':
+			comment = '已处理：'
+		self.parent.statusbar.SetStatusText('导出操作 ' + comment + str(len(self.info['export'][mode])), 1)
+
+	def update_import(self, msg):
+		self.info['import']['send'].append(msg)
+		self.parent.statusbar.SetStatusText('导入操作 ' + '已传输：' + str(len(self.info['import']['send'])), 0)
 
 	def bind_event(self):
 		self.dvc.Bind(dv.EVT_DATAVIEW_ITEM_ACTIVATED, self.on_item_dbclick)
 
 	def on_nagetive(self, e):
-		if self.dvc.ItemCount > 0 and self.parent.mode == ID_MODE_EXPORT:
+		if self.dvc.ItemCount > 0 and self.mode == ID_MODE_EXPORT:
 			an = Add_nagetive.NagetiveAddFrame(self.parent)
 
 	def on_clear(self, e):
@@ -89,7 +220,7 @@ class DataView(wx.Panel):
 			pass
 
 	def on_add_negative(self, e):  # 添加负样本
-		if self.dvc.ItemCount > 0 and self.parent.mode == ID_MODE_EXPORT:
+		if self.dvc.ItemCount > 0 and self.mode == ID_MODE_EXPORT:
 			an = Add_nagetive.NagetiveAddFrame(self.parent)
 
 	def on_add_replenish(self, e):  # 添加补充素材
@@ -97,11 +228,13 @@ class DataView(wx.Panel):
 			ids = [self.dvc.GetValue(r, 1) for r in range(self.dvc.ItemCount) if self.dvc.GetValue(r, 0)]
 			f = wx.Frame(None, -1, '添加补充素材')
 			f.SetSize((500, 400))
-			ar = Add_replenish.ReplenishAdd(f, objects=self.parent.last_query_objects, ids=ids, statistics_view_obj=self.parent.statistics_panel, data_view_obj=self, last_data=self._replenish_data)
+			ar = Add_replenish.ReplenishAdd(f, objects=self.parent.last_query_objects, ids=ids,
+			                                statistics_view_obj=self.parent.statistics_panel, data_view_obj=self,
+			                                last_data=self._replenish_data)
 			f.Show()
 
 	def on_item_dbclick(self, event):
-		if self.parent.mode == 1:
+		if self.mode == ID_MODE_EXPORT:
 			_id = event.EventObject.GetTextValue(event.EventObject.SelectedRow, 1)
 			_sql = 'select path from dmp.image where id=' + _id
 			img = Util.execute_sql(_sql)[0][0]
@@ -115,14 +248,14 @@ class DataView(wx.Panel):
 				if os.path.exists(_img):
 					self.parent.image_panel.set_image(_img)
 					self.parent.on_show_image_view()
-		if self.parent.mode == 0:
+		if self.mode == ID_MODE_IMPORT:
 			_path = event.EventObject.GetTextValue(event.EventObject.SelectedRow, 2)
 			if os.path.exists(_path):
 				self.parent.image_panel.set_image(_path)
 				self.parent.on_show_image_view()
 
 	def on_import(self, evt):
-		if self.parent.mode == 0 and self.dvc.GetItemCount() > 0:
+		if self.mode == ID_MODE_IMPORT and self.dvc.GetItemCount() > 0:
 			rows = self.dvc.GetItemCount()
 			cols = self.dvc.GetColumnCount()
 			if rows > 0:
@@ -142,10 +275,30 @@ class DataView(wx.Panel):
 						except Exception as e:
 							Util.LOG.error(repr(e))
 				with concurrent.futures.ThreadPoolExecutor(max_workers=500) as executor:
-					fs = {executor.submit(self.thread_insert_to_r_image_label, key): key for key in self.import_data.keys()}
+					fs = {executor.submit(self.thread_insert_to_r_image_label, key): key for key in
+					      self.import_data.keys()}
 					for future in concurrent.futures.as_completed(fs):
 						pass
-				self.parent.to_import(self.gen_import_works(work_ids))
+				# self.parent.to_import(self.gen_import_works(work_ids))
+				self.info = {
+					'import': {
+						'send': [],
+						'_send': 0
+					},
+					'export': {
+						'cutting': [],
+						'process': [],
+						'zoom': [],
+						'recv': [],
+						'_cutting': 0,
+						'_process': 0,
+						'_zoom': 0,
+						'_recv': 0
+					}
+				}
+				UI_thread(self.mode, (self.gen_import_works(work_ids),))
+				# btn = evt.GetEventObject()
+				# btn.Disable()
 		else:
 			r = Wizard.show_import_wizard(self)
 			if r is None:
@@ -284,7 +437,8 @@ class DataView(wx.Panel):
 							index += 1
 							_label_data = list()
 							if 'positive' in _root:
-								_tmp = '%s 0.0 0 0.0 %s %s %s %s 0.0 0.0 0.0 0.0 0.0 0.0 0.0' % (r['label_obj'], '0', '0', str(img.width), str(img.height))
+								_tmp = '%s 0.0 0 0.0 %s %s %s %s 0.0 0.0 0.0 0.0 0.0 0.0 0.0' % (
+								r['label_obj'], '0', '0', str(img.width), str(img.height))
 								_label_data.append((r['label_obj'], _tmp))
 
 							if 'negative' in _root:
@@ -365,7 +519,9 @@ class DataView(wx.Panel):
 						if 'Blabel' == _root.split('\\')[-1]:
 							for f in _file:
 								if os.path.splitext(f)[1].upper() == '.TXT':
-									_key = '\\'.join(os.path.join(_root, f).split('\\')[:-2]) + '\\' + 'image' + '\\' + '.'.join(os.path.basename(f).split('.')[:-1]) + '.jpg'
+									_key = '\\'.join(
+										os.path.join(_root, f).split('\\')[:-2]) + '\\' + 'image' + '\\' + '.'.join(
+										os.path.basename(f).split('.')[:-1]) + '.jpg'
 
 									if _key not in self.import_data.keys():
 										self.import_data[_key] = dict()
@@ -374,7 +530,7 @@ class DataView(wx.Panel):
 										while True:
 											_line = fr.readline()
 											_type = _line.split(' ')[0]
-											_new_type = self.get_new_type(_root,_type)
+											_new_type = self.get_new_type(_root, _type)
 											if _new_type != '':
 												_label_data.append((_new_type, _line.replace(_type, _new_type)))
 											if not _line:
@@ -383,7 +539,7 @@ class DataView(wx.Panel):
 										self.import_data[_key]['D'] = list()
 									self.import_data[_key]['D'] = _label_data
 					self.set_data(show_data)
-			self.parent.set_mode(0)
+			self.mode = ID_MODE_IMPORT
 
 	def get_type_by_kind(self, kind):
 		if kind == '客车':
@@ -396,7 +552,7 @@ class DataView(wx.Panel):
 			return 'QG17SK 0000000000000'
 		else:
 			return 'XXXXXXXXXXXXXXXXXXXX'
-
+	
 	def get_new_type(self, _root, _type):
 		if 'AngleCock' in _root:
 			if _type == 'valve':
@@ -428,7 +584,7 @@ class DataView(wx.Panel):
 		_get_labelid_sql = 'select dmp.label.id from dmp.label where dmp.label.type=%s and dmp.label.name=%s'
 		_insert_r_image_label_sql = 'insert into dmp.r_image_label (dmp.r_image_label.image_id, dmp.r_image_label.label_id, dmp.r_image_label.data) values (%s, %s, %s)'
 		mutex.acquire()
-		_image_id = Util.execute_sql(_get_imageid_sql, args=(data.replace('\\','\\\\'),))
+		_image_id = Util.execute_sql(_get_imageid_sql, args=(data.replace('\\', '\\\\'),))
 		mutex.release()
 		if len(self.import_data[data].keys()) == 0:
 			return
@@ -449,14 +605,14 @@ class DataView(wx.Panel):
 					continue
 				try:
 					mutex.acquire()
-					Util.execute_sql(_insert_r_image_label_sql, args=(int(_image_id[0][0]), int(_label_id[0][0]), str(obj[1]).strip()), need_commit=True)
+					Util.execute_sql(_insert_r_image_label_sql,
+					                 args=(int(_image_id[0][0]), int(_label_id[0][0]), str(obj[1]).strip()),
+					                 need_commit=True)
 					mutex.release()
 				except Exception as e:
 					Util.LOG.error(repr(e))
 					Util.LOG.debug('sql -> %s' % (_insert_r_image_label_sql,))
 					continue
-
-
 
 	def thread_insert_to_image(self, data, jpg_or_png=0):
 		_insert_image_sql = ''
@@ -496,11 +652,10 @@ class DataView(wx.Panel):
 		except Exception as e:
 			Util.LOG.error(repr(e))
 			Util.LOG.debug('sql -> %s' % (_insert_image_sql % (data[0], data[1], data[2])))
-			Util.LOG.info('插入image表异常，有可能path不唯一！')
 		mutex.release()
 		_select_image_sql = 'select dmp.image.id from dmp.image where dmp.image.path=%s'
 		mutex.acquire()
-		_id = Util.execute_sql(_select_image_sql, args=(os.path.normpath(data[0]).replace('\\','\\\\')))
+		_id = Util.execute_sql(_select_image_sql, args=(os.path.normpath(data[0]).replace('\\', '\\\\')))
 		mutex.release()
 		if len(_id) > 0:
 			return _id[0][0]
@@ -517,37 +672,57 @@ class DataView(wx.Panel):
 				_r_id = Util.execute_sql(_get_r_label, args=(int(_id),))
 			except Exception as e:
 				Util.LOG.error(repr(e))
-				Util.LOG.debug('err -> %s' %(_id,))
+				Util.LOG.debug('err -> %s' % (_id,))
 
 			work.append((
 				_path,
 				(_id, _r_id),
 				self.import_data[_path] if self.import_data is not None and _path in self.import_data.keys() else dict()
-				))
+			))
 		return work
 
 	def gen_export_works(self, ids, exparams):
 		work = list()
 		for _id in ids:
 			work.append((
-				_id, 
+				_id,
 				exparams['need_cutting'],
 				exparams['need_zoom'],
 				exparams['scale'],
 				exparams['export_path'],
-				self._replenish_data[_id] if self._replenish_data is not None and _id in self._replenish_data.keys() else dict()
-				))
+				self._replenish_data[
+					_id] if self._replenish_data is not None and _id in self._replenish_data.keys() else dict()
+			))
 		return work
 
 	def on_export(self, evt):
-		if self.parent.mode == 1 and self.dvc.GetItemCount() > 0:
+		if self.mode == ID_MODE_EXPORT and self.dvc.GetItemCount() > 0:
 			r = Wizard.show_export_wizard(self)
 			row = self.dvc.GetItemCount()
 			ids = [self.dvc.GetValue(r, 1) for r in range(row) if self.dvc.GetValue(r, 0)]
 			if r is not None and len(ids) > 0:
 				# for w in self.gen_export_works(ids, r):
 				# self.parent.process_work(self.parent.to_export, (self.gen_export_works(ids, r),))
-				self.parent.to_export(self.gen_export_works(ids, r))
+				self.info = {
+					'import': {
+						'send': [],
+						'_send': 0
+					},
+					'export': {
+						'cutting': [],
+						'process': [],
+						'zoom': [],
+						'recv': [],
+						'_cutting': 0,
+						'_process': 0,
+						'_zoom': 0,
+						'_recv': 0
+					}
+				}
+				UI_thread(self.mode, (self.gen_export_works(ids, r),), self.parent.last_query_objects)
+			# self.parent.to_export(self.gen_export_works(ids, r))
+			# btn = evt.GetEventObject()
+			# btn.Disable()
 		elif self.dvc.GetItemCount() == 0:
 			wx.MessageBox('请先检索数据！')
 		else:
@@ -566,13 +741,29 @@ class DataView(wx.Panel):
 		self.dvc.AppendTextColumn('类型', width=40)
 		for c in self.dvc.Columns:
 			c.Sortable = True
-	
+
 	def clear_data(self):
 		self.dvc.DeleteAllItems()
+		self.info = {
+			'import': {
+				'send': [],
+				'_send': 0
+			},
+			'export': {
+				'cutting': [],
+				'process': [],
+				'zoom': [],
+				'recv': [],
+				'_cutting': 0,
+				'_process': 0,
+				'_zoom': 0,
+				'_recv': 0
+			}
+		}
 		self.parent.clear_statisticspanel_data()
 
-	def set_replenish_data(self, data): # 设置补充操作对象
-		self._replenish_data = data 
+	def set_replenish_data(self, data):  # 设置补充操作对象
+		self._replenish_data = data
 
 	def set_data(self, data, need_clear=True):
 		if data is not None:
@@ -597,34 +788,3 @@ class DataView(wx.Panel):
 					self.dvc.AppendItem(_data)
 			except Exception as e:
 				self.parent.log.info(repr(e))
-
-
-
-
-	# def on_save(self, evt):
-	# 	if len(self.edit_items) > 0:
-	# 		for update in self.edit_items:
-	# 			_sql = 'update dmp.image set image.' + update[0] + ' = ' + str(update[1]) + ' where id=' + str(
-	# 				update[2])
-	# 			self.parent.db_do_sql(_sql, need_commit=True)
-	# 		self.edit_items = list()
-
-	# def on_edit_done(self, event):
-	# 	field = self.parent.db_column_info[self.dvc.GetColumn(self.last_edit_col).GetTitle()]['field']
-	# 	try:
-	# 		if self.parent.db_column_info[event.EventObject.GetCurrentColumn().GetTitle()]['type'] == 'int':
-	# 			_new_value = int(event.GetValue())
-	# 		elif self.parent.db_column_info[event.EventObject.GetCurrentColumn().GetTitle()]['type'] == 'varchar':
-	# 			_new_value = str(event.GetValue())
-	# 		image_id = self.dvc.GetValue(self.last_edit_row, 1)
-	# 		self.edit_items.append((field, _new_value, image_id))
-	# 	except Exception as e:
-	# 		self.parent.log.info(repr(e))
-	# 	finally:
-	# 		self.last_edit_row = -1
-	# 		self.last_edit_col = -1
-
-	# def on_edit_start(self, event):
-	# 	self.last_edit_row = event.EventObject.SelectedRow
-	# 	self.last_edit_col = event.EventObject.GetColumnPosition(event.EventObject.GetCurrentColumn())
-

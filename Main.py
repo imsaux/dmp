@@ -12,13 +12,11 @@ import DataView
 import SettingView
 import StatisticsView
 import concurrent.futures
-import Cutting
 from six import BytesIO
 import Client
 import copy
 import random
 import inspect
-from multiprocessing import Process
 
 ID_Image_view = wx.NewId()
 ID_Data_view = wx.NewId()
@@ -28,6 +26,7 @@ ID_Setting_view = wx.NewId()
 ID_About = wx.NewId()
 ID_EXIT = wx.NewId()
 ID_About_view = wx.NewId()
+
 
 def _get_icon():
 	_data = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00 \x00\x00\x00 \x08\x06\x00\
@@ -43,6 +42,7 @@ o\xda\x84pB2\x1f\x81Fa\x8c\x9c\x08\x04Z{\xcf\xa72\xbcv\xfa\xc5\x08 \x80r\x80\
 	icon = wx.Icon()
 	icon.CopyFromBitmap(bmp)
 	return icon
+
 
 
 class MainFrame(wx.Frame):
@@ -111,11 +111,7 @@ class MainFrame(wx.Frame):
 		self.bind_event()
 
 	def set_mode(self, value):
-		self.mode = value
-
-	def process_work(self, func, args):
-		_p = Process(target=func, args=args)
-		_p.start()
+		self.data_view.mode = value
 
 	def to_export(self, works):
 		work_result = list()
@@ -128,23 +124,22 @@ class MainFrame(wx.Frame):
 					Util.LOG.error(repr(e))
 					Util.LOG.debug(repr(works))
 
-		# with concurrent.futures.ThreadPoolExecutor() as executor:
-		# 	fs = {executor.submit(self.e_to_cutting, w): w for w in works}
-		# 	for future in concurrent.futures.wait(fs, return_when=concurrent.futures.ALL_COMPLETED):
-		# 		try:
-		# 			work_result.append(future.result())
-		# 		except Exception as e:
-		# 			Util.LOG.error(repr(e))
-		# 			Util.LOG.debug(repr(works))
+	# with concurrent.futures.ThreadPoolExecutor() as executor:
+	# 	fs = {executor.submit(self.e_to_cutting, w): w for w in works}
+	# 	for future in concurrent.futures.wait(fs, return_when=concurrent.futures.ALL_COMPLETED):
+	# 		try:
+	# 			work_result.append(future.result())
+	# 		except Exception as e:
+	# 			Util.LOG.error(repr(e))
+	# 			Util.LOG.debug(repr(works))
 
-
-	def e_to_process(self): # 图像处理
+	def e_to_process(self):  # 图像处理
 		pass
 
-	def e_to_zoom(self): # 缩放
+	def e_to_zoom(self):  # 缩放
 		pass
 
-	def e_to_cutting(self, work): # 裁剪
+	def e_to_cutting(self, work):  # 裁剪
 		if len(self.last_query_objects) > 0:
 			_methods = []
 			for obj in [obj.split('-')[0] for obj in self.last_query_objects]:
@@ -153,7 +148,7 @@ class MainFrame(wx.Frame):
 			_tmp = []
 			[_tmp.extend(x) for x in _methods]
 			_methods = set(_tmp)
-			if len(_methods) == 1: # 进行裁剪
+			if len(_methods) == 1:  # 进行裁剪
 				for r, d, f in os.walk(Util.CUTTING_DIR):
 					for _file in f:
 						os.remove(_file)
@@ -204,7 +199,8 @@ class MainFrame(wx.Frame):
 		# self.last_query_objects = set(query_objects.split(','))
 		self.last_query_objects = set(query_objects)
 
-	def db_do_sql(self, sql, args=None, need_commit=False, update=False, need_last=False, need_clear=False, need_random=-1, for_dataview=False, data_mode=0):
+	def db_do_sql(self, sql, args=None, need_commit=False, update=False, need_last=False, need_clear=False,
+	              need_random=-1, for_dataview=False, data_mode=0):
 		data = Util.execute_sql(sql, args=args, need_commit=need_commit)
 		if len(data) == 0:
 			return []
@@ -317,7 +313,9 @@ class MainFrame(wx.Frame):
 		self._mgr.AddPane(self.CreateStatisticsCtrl(), aui.AuiPaneInfo().
 		                  Name("统计").Caption("统计").MinSize(wx.Size(200, 150)).Bottom().Layer(0).Row(0).Position(
 			1).CloseButton(True).MaximizeButton(True))
-		self._mgr.AddPane(self.CreateQueryCtrl(), aui.AuiPaneInfo().Name("检索").Caption('检索').MinSize(wx.Size(430,100)).Left().Layer(0).Row(0).Position(0).CloseButton(True))
+		self._mgr.AddPane(self.CreateQueryCtrl(),
+		                  aui.AuiPaneInfo().Name("检索").Caption('检索').MinSize(wx.Size(430, 100)).Left().Layer(0).Row(
+			                  0).Position(0).CloseButton(True))
 		self._mgr.AddPane(self.CreateImageCtrl(), aui.AuiPaneInfo().Name("图像").CenterPane().Hide())
 		self._mgr.Update()
 

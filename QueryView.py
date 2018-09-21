@@ -333,8 +333,13 @@ class QueryView(scrolled.ScrolledPanel):
 		if self.label_object_value is not None:
 			_tmp = []
 			for obj in self.label_object_value.split(','):
-				for typ in self.label_type_value.split(','):
-					_tmp.append(obj + '-' + typ)
+				if self.label_type_value is None:
+					_tmp.append(obj + '-' + '分类')
+					_tmp.append(obj + '-' + '目标检测')
+					_tmp.append(obj + '-' + '分割')
+				else:
+					for typ in self.label_type_value.split(','):
+						_tmp.append(obj + '-' + typ)
 			if not self.is_nagetive:
 				base_sql += ' AND id in (SELECT ril.image_id FROM dmp.r_image_label as ril WHERE ril.label_id in (SELECT l.id FROM dmp.label as l WHERE l.name in (' + ','.join(['"'+str(x)+'"' for x in self.label_object_value.split(',')]) + ')))'
 			else:

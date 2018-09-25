@@ -60,7 +60,7 @@ class QueryView(scrolled.ScrolledPanel):
 					setattr(self, 'ctr' + '_' + query_items[item]['field'] + '_to', ctrl2)
 					self.image_ctrls.append((ctrl1, st, ctrl2))
 
-				elif query_items[item]['field'] in ['status', 'quality_level', 'line', 'side', 'site', 'weather', 'set_type']:
+				elif query_items[item]['field'] in ['quality', 'line', 'side', 'site', 'weather', 'set', 'state']:
 					st = wx.StaticText(self, -1, item)
 					_sql = 'SELECT %s FROM image group by %s' %(query_items[item]['field'], query_items[item]['field'])
 					_data = Util.execute_sql(_sql)
@@ -209,6 +209,9 @@ class QueryView(scrolled.ScrolledPanel):
 		self.SetSizer(self.ALL_SIZER)
 		self.SetupScrolling()
 
+		Util.LOG.info('queryview已加载')
+
+
 	def on_clear_click(self, e):
 		pass
 
@@ -226,9 +229,9 @@ class QueryView(scrolled.ScrolledPanel):
 				if data == '':
 					continue
 				if 'date_from' in item:
-					base_sql += ' AND LEFT(date_format(date, "%Y%m%d“), 8) >= ' + data
+					base_sql += ' AND LEFT(date_format(date, "%Y%m%d"), 8) >= ' + data
 				elif 'date_to' in item:
-					base_sql += ' AND LEFT(date_format(date, "%Y%m%d“), 8) <= ' + data
+					base_sql += ' AND LEFT(date_format(date, "%Y%m%d"), 8) <= ' + data
 				elif 'time_from' in item:
 					base_sql += ' AND LEFT(date_format(date, "%k%i%s"), 8) >= ' + ''.join(data.split(':'))
 				elif 'time_to' in item:

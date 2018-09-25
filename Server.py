@@ -14,9 +14,8 @@ lock = threading.Lock()
 
 class DmpTCPRequestHandler(socketserver.BaseRequestHandler):
 	def handle(self):
-		# if Util.db is None:
-		# 	return
-		_cmd = str(self.request.recv(1024), encoding="utf-8")
+		Util.LOG.info('%s 已连接' % (repr(self.client_address)))
+		_cmd = str(self.request.recv(3), encoding="utf-8")
 		if _cmd == "get": # s -> c
 			self.request.send(b'r')
 			table_id, jpg_or_png = struct.unpack('li', self.request.recv(1024))
@@ -26,28 +25,22 @@ class DmpTCPRequestHandler(socketserver.BaseRequestHandler):
 					_path = Util.execute_sql('select dmp.image.path from dmp.image where dmp.image.id=%s', args=table_id)[0][0]
 				elif jpg_or_png == 1:
 					_path = Util.execute_sql('select dmp.r_image_label.data  from dmp.r_image_label where dmp.r_image_label.id=%s', args=table_id)[0][0]
-				if not os.path.exists(os.path.normpath(_path)):
-					Util.LOG.debug('无效路径')
-					Util.LOG.debug(repr(_path))
-					return
+				if os.path.exists(os.path.normpath(_path)):
+					self.request.send(b't0')
+					if self.request.recv(2) == b't0':
+						file_size = os.stat(_path).st_size
+						self.request.send(struct.pack('Q100s', file_size, os.path.basename(_path).encode()))
+						if self.request.recv(1) == b'r':
+							with open(_path, 'rb') as fr:
+								while True:
+									data = fr.read(1024)
+									if not data:
+										break
+									self.request.send(data)
 			except Exception as e:
 				Util.LOG.error(repr(e))
-				return
-			self.request.send(b't0')
-			if self.request.recv(2) == b't0':
-				file_size = os.stat(_path).st_size
-				self.request.send(struct.pack('Q100s', file_size, os.path.basename(_path).encode()))
-				if self.request.recv(1) == b'r':
-					try:
-						with open(_path, 'rb') as fr:
-							while True:
-								data = fr.read(1024)
-								if not data:
-									break
-								self.request.send(data)
-					except Exception as e:
-						Util.LOG.error(repr(e))
-		elif _cmd == "put": # c -> s
+				Util.LOG.debug('params -> %s, %s, %s' % (str(table_id), _path, str(file_size)))
+		if _cmd == "put": # c -> s
 			self.request.send(b'r')
 			table_id, jpg_or_png = struct.unpack('li', self.request.recv(1024))
 			Util.LOG.debug('table_id, jpg_or_png -> %s, %s' % (table_id, jpg_or_png))
@@ -105,8 +98,6 @@ class DmpTCPRequestHandler(socketserver.BaseRequestHandler):
 			except Exception as e:
 				Util.LOG.error(repr(e))
 				Util.LOG.debug('params -> %s, %s' % (_new_file_path, table_id))
-		else:
-			pass
 
 	def _check_dir(self, _mode, _site, _code, _date):
 		if not os.path.exists(_root):

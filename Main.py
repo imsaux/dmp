@@ -18,6 +18,7 @@ import copy
 import random
 import inspect
 
+
 ID_Image_view = wx.NewId()
 ID_Data_view = wx.NewId()
 ID_Query_view = wx.NewId()
@@ -110,87 +111,11 @@ class MainFrame(wx.Frame):
 		# 事件绑定
 		self.bind_event()
 
+		Util.LOG.info('main已加载')
+
+
 	def set_mode(self, value):
 		self.data_view.mode = value
-
-	def to_export(self, works):
-		work_result = list()
-		with concurrent.futures.ThreadPoolExecutor() as executor:
-			fs = {executor.submit(self.e_to_recv, w): w for w in works}
-			for future in concurrent.futures.wait(fs, return_when=concurrent.futures.ALL_COMPLETED):
-				try:
-					work_result.append(future.result())
-				except Exception as e:
-					Util.LOG.error(repr(e))
-					Util.LOG.debug(repr(works))
-
-	# with concurrent.futures.ThreadPoolExecutor() as executor:
-	# 	fs = {executor.submit(self.e_to_cutting, w): w for w in works}
-	# 	for future in concurrent.futures.wait(fs, return_when=concurrent.futures.ALL_COMPLETED):
-	# 		try:
-	# 			work_result.append(future.result())
-	# 		except Exception as e:
-	# 			Util.LOG.error(repr(e))
-	# 			Util.LOG.debug(repr(works))
-
-	def e_to_process(self):  # 图像处理
-		pass
-
-	def e_to_zoom(self):  # 缩放
-		pass
-
-	def e_to_cutting(self, work):  # 裁剪
-		if len(self.last_query_objects) > 0:
-			_methods = []
-			for obj in [obj.split('-')[0] for obj in self.last_query_objects]:
-				if obj in Util.cutting_relation['object'].keys():
-					_methods.append(Util.cutting_relation['object'][obj])
-			_tmp = []
-			[_tmp.extend(x) for x in _methods]
-			_methods = set(_tmp)
-			if len(_methods) == 1:  # 进行裁剪
-				for r, d, f in os.walk(Util.CUTTING_DIR):
-					for _file in f:
-						os.remove(_file)
-					break
-				_all_ = inspect.getmembers(Cutting)
-				_cls = [i[1] for i in _all_ if i[0] == list(_methods)[0]][0]
-				rows = self.data_view.dvc.GetItemCount()
-				for i in range(rows):
-					if self.data_view.dvc.GetValue(i, 0):
-						_t = _cls(self.data_view.dvc.GetValue(i, 2), Util.CUTTING_DIR)
-						_t.cut()
-
-	def e_to_recv(self, work):
-		c = Client.Client(Util.HOST, Util.PORT)
-		c.get_data(work[0], work[4])
-		# c.get_data(work[0], Util.ORIGIN_DIR)
-		return work[0]
-
-	def e_to_send(self, work):
-		c = Client.Client(Util.HOST, Util.PORT)
-		c.put_data(work[0], work[1][0])
-		if len(work[2]) > 0:
-			for _type in work[2].keys():
-				if work[2]['type'] == 'S':
-					_type = '分割'
-				else:
-					return work[1][0]
-				for _data in work[2][_type]:
-					_get_path_sql = 'select dmp.r_image_label.id, dmp.r_image_label.data from dmp.r_image_label where dmp.r_image_label.image_id=%s and dmp.r_image_label.label_id=(select dmp.label.id from dmp.label where dmp.label.type=%s and dmp.label.name=%s)'
-					_result = Util.execute_sql(_get_path_sql, args=(work[1][0], _type, Util.label_object[_data[0]]))[0]
-					c.put_data(_result[1], _result[0], 1)
-		return work[1][0]
-
-	def to_import(self, works):
-		work_result = list()
-		with concurrent.futures.ThreadPoolExecutor() as executor:
-			fs = {executor.submit(self.e_to_send, w): w for w in works}
-			for future in concurrent.futures.as_completed(fs):
-				try:
-					work_result.append(future.result())
-				except Exception as e:
-					Util.LOG.error(repr(e))
 
 	def clear_query_objects(self):
 		self.last_query_objects = set()

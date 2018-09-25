@@ -4,8 +4,8 @@ block_cipher = None
 
 
 a = Analysis(['main.py'],
-             pathex=['D:\\code\\jetbrains\\pycharm\\dmp'],
-             binaries=[('C:\\Program Files (x86)\\Windows Kits\\10\\Redist\\ucrt\\DLLs\\x64', '.')],
+             pathex=['c:\\p363', 'C:\\Users\\sy\\PycharmProjects\\dmp'],
+             binaries=[],
              datas=[('setting.json', '.'),],
              hiddenimports=[],
              hookspath=[],
@@ -33,4 +33,4 @@ coll = COLLECT(exe,
                a.datas,
                strip=False,
                upx=False,
-               name='main')
+               name='TOEC_DataPlatform')

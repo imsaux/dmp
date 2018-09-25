@@ -81,7 +81,6 @@ DB_USERPASSW0RD = ''
 DB_NAME = ''
 ROOT_DIR = ''
 
-
 if os.path.exists('setting.json'):
 	with open('setting.json', 'r') as fr:
 		kd = json.load(fr)
@@ -156,7 +155,6 @@ if LOG is None:
 def execute_sql(sql, args=None, need_commit=False):
 	data = ()
 	try:
-		# db = pymysql.connect(HOST, 'dmp', 'dmpdmp', 'dmp')
 		db = pymysql.connect(HOST, DB_USERNAME, DB_USERPASSW0RD, DB_NAME)
 		cursor = db.cursor()
 		if args is None:
@@ -178,6 +176,7 @@ def _create_default_label_table():
 		for t in label_type:
 			_sql = 'insert into dmp.label (name, type) values(%s,%s);'
 			execute_sql(_sql, args=(o, t), need_commit=True)
+LOG.info('Util已载入')
 
 # if __name__ == '__main__':
 # 	_create_default_label_table()

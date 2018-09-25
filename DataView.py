@@ -5,6 +5,7 @@
 3. 导出 （设置尺度）
 4. 缩放并裁剪生成图片及相应标签
 """
+import Util
 import datetime
 import os.path
 import wx
@@ -15,9 +16,8 @@ import Add_replenish
 import CarClassification
 import PIL.Image
 from threading import Thread, Lock
-from wx.lib.pubsub import pub
+import pubsub.pub
 import concurrent.futures
-import Util
 import Client
 import Cutting
 import inspect
@@ -55,7 +55,7 @@ class UI_thread(Thread):
 					_get_path_sql = 'select dmp.r_image_label.id, dmp.r_image_label.data from dmp.r_image_label where dmp.r_image_label.image_id=%s and dmp.r_image_label.label_id=(select dmp.label.id from dmp.label where dmp.label.type=%s and dmp.label.name=%s)'
 					_result = Util.execute_sql(_get_path_sql, args=(work[1][0], _type, Util.label_object[_data[0]]))[0]
 					c.put_data(_result[1], _result[0], 1)
-		wx.CallAfter(pub.sendMessage, 'import', msg=str(work[0]))
+		wx.CallAfter(pubsub.pub.sendMessage, 'import', msg=str(work[0]))
 		return work[1][0]
 
 	def to_import(self, works):  # 导入流程
@@ -71,7 +71,7 @@ class UI_thread(Thread):
 	def e_to_recv(self, work):
 		c = Client.Client(Util.HOST, Util.PORT)
 		c.get_data(work[0], work[4])
-		wx.CallAfter(pub.sendMessage, 'export', mode='recv', msg=str(work[0]))
+		wx.CallAfter(pubsub.pub.sendMessage, 'export', mode='recv', msg=str(work[0]))
 		return work[0]
 
 	def to_export(self, works):  # 导出流程
@@ -97,10 +97,10 @@ class UI_thread(Thread):
 		# 			Util.LOG.debug(repr(works))
 
 	def e_to_process(self, work):  # 图像处理
-		pass
+		return work
 
 	def e_to_zoom(self, work):  # 缩放
-		pass
+		return work
 
 	def e_to_cutting(self, work):  # 裁剪
 		# work -> 图像地址
@@ -121,7 +121,9 @@ class UI_thread(Thread):
 				_cls = [i[1] for i in _all_ if i[0] == list(_methods)[0]][0]
 				_t = _cls(work, Util.CUTTING_DIR)
 				_t.cut()
-				wx.CallAfter(pub.sendMessage, 'export', mode='cutting', msg=str(work))
+				wx.CallAfter(pubsub.pub.sendMessage, 'export', mode='cutting', msg=str(work))
+			return work, True
+		return work, False
 
 
 class DataView(wx.Panel):
@@ -179,8 +181,11 @@ class DataView(wx.Panel):
 		self.bind_event()
 		if self.data is not None:
 			self.set_data(self.data)
-		pub.subscribe(self.update_export, 'export')
-		pub.subscribe(self.update_import, 'import')
+		pubsub.pub.subscribe(self.update_export, 'export')
+		pubsub.pub.subscribe(self.update_import, 'import')
+
+		Util.LOG.info('dataview已加载')
+
 
 	def update_export(self, mode, msg):
 		self.info['export'][mode].append(msg)
@@ -690,8 +695,7 @@ class DataView(wx.Panel):
 				exparams['need_zoom'],
 				exparams['scale'],
 				exparams['export_path'],
-				self._replenish_data[
-					_id] if self._replenish_data is not None and _id in self._replenish_data.keys() else dict()
+				self._replenish_data[_id] if self._replenish_data is not None and _id in self._replenish_data.keys() else dict()
 			))
 		return work
 

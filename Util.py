@@ -176,7 +176,6 @@ def _create_default_label_table():
 		for t in label_type:
 			_sql = 'insert into dmp.label (name, type) values(%s,%s);'
 			execute_sql(_sql, args=(o, t), need_commit=True)
-LOG.info('Util已载入')
 
 # if __name__ == '__main__':
 # 	_create_default_label_table()

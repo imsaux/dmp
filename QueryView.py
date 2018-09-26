@@ -62,7 +62,7 @@ class QueryView(scrolled.ScrolledPanel):
 
 				elif query_items[item]['field'] in ['quality', 'line', 'side', 'site', 'weather', 'set', 'state']:
 					st = wx.StaticText(self, -1, item)
-					_sql = 'SELECT %s FROM image group by %s' %(query_items[item]['field'], query_items[item]['field'])
+					_sql = 'SELECT dmp.image.%s FROM dmp.image group by dmp.image.%s' %(query_items[item]['field'], query_items[item]['field'])
 					_data = Util.execute_sql(_sql)
 					_list = [str(x[0]) for x in _data]
 					ctrl = PopupControl.PopControl(self, 2, _list, self, -1, pos=(30, 30))

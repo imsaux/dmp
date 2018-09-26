@@ -1,6 +1,7 @@
 # encode=utf-8
 
 import Util
+import json
 import socketserver
 import os
 import struct
@@ -41,12 +42,20 @@ class DmpTCPRequestHandler(socketserver.BaseRequestHandler):
 				Util.LOG.error(repr(e))
 				Util.LOG.debug('params -> %s, %s, %s' % (str(table_id), _path, str(file_size)))
 		if _cmd == "put": # c -> s
+			lock.acquire()
 			self.request.send(b'r')
-			table_id, jpg_or_png = struct.unpack('li', self.request.recv(1024))
-			Util.LOG.debug('table_id, jpg_or_png -> %s, %s' % (table_id, jpg_or_png))
+			_data = self.request.recv(struct.calcsize('i'))
+			lock.release()
+			head_info_len = struct.unpack('i', _data)[0]
+			data = self.request.recv(head_info_len)
+			head_info = json.loads(data, encoding='utf-8')
+			table_id = head_info['table_id']
+			jpg_or_png = head_info['mode']
+			file_name = head_info['name']
+			file_size = head_info['size']
 			try:
-				lock.acquire()
 				_site, _code, _date = '', '', ''
+				lock.acquire()
 				if jpg_or_png == 0: # jpg
 					_site, _code, _date = Util.execute_sql(
 						'select dmp.image.site, dmp.image.code, dmp.image.date from dmp.image where dmp.image.id=%s',
@@ -56,26 +65,25 @@ class DmpTCPRequestHandler(socketserver.BaseRequestHandler):
 						'select dmp.image.site, dmp.image.code, dmp.image.date from dmp.image where dmp.image.id=(select dmp.r_image_label.image_id  from dmp.r_image_label where dmp.r_image_label.id=%s)',
 						args=table_id)[0]
 				lock.release()
+				_kind = _code[:2]
+				_year = _date.year
+				_mode = '原图' if jpg_or_png == 0 else '标签'
+				_save_path = os.path.join(
+					_root,
+					_mode,
+					_site,
+					_kind,
+					str(_year)
+				)
+				if not self._check_dir(_mode, _site, _code, _date):
+					Util.LOG.error('传输保存路径异常')
+				_new_file_path = os.path.join(_save_path, file_name)
+				Util.LOG.debug('传输保存路径 -> %s' % (_new_file_path,))
 			except Exception as e:
 				Util.LOG.debug(repr(e))
-			_kind = _code[:2]
-			_year = _date.year
-			self.request.send(b't0')
-			file_size, file_name = struct.unpack('Q100s', self.request.recv(1024))
-			file_name = file_name.split(b'\x00')[0].decode()
-			Util.LOG.debug('file_size, file_name -> %s, %s' % (file_size, file_name))
-			_mode = '原图' if jpg_or_png == 0 else '标签'
-			_save_path = os.path.join(
-				_root,
-				_mode,
-				_site,
-				_kind,
-				str(_year)
-			)
-			if not self._check_dir(_mode, _site, _code, _date):
-				Util.LOG.error('传输保存路径异常')
-			_new_file_path = os.path.join(_save_path, file_name)
-			Util.LOG.debug('传输保存路径 -> %s' % (_new_file_path,))
+
+			Util.LOG.debug('file_size, file_name， table_id, jpg_or_png-> %s, %s, %s, %s' % (str(file_size), file_name, str(table_id), str(jpg_or_png)))
+			lock.acquire()
 			self.request.send(b'r')
 			with open(_new_file_path, 'wb') as fw:
 				while True:
@@ -88,13 +96,16 @@ class DmpTCPRequestHandler(socketserver.BaseRequestHandler):
 						fw.write(data)
 						break
 					file_size -= 1024
+			lock.release()
 			_update_sql = ''
 			if jpg_or_png == 0:
 				_update_sql = 'update dmp.image set dmp.image.path=%s where dmp.image.id=%s'
 			elif jpg_or_png == 1:
 				_update_sql = 'update dmp.r_image_label set dmp.r_image_label.data=%s where dmp.r_image_label.id=%s'
 			try:
+				lock.acquire()
 				Util.execute_sql(_update_sql, args=(_new_file_path, table_id), need_commit=True)
+				lock.release()
 			except Exception as e:
 				Util.LOG.error(repr(e))
 				Util.LOG.debug('params -> %s, %s' % (_new_file_path, table_id))

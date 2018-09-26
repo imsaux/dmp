@@ -1,10 +1,11 @@
 # encode=utf-8
 
+import Util
+import json
 import socket
 import struct
 import os
 import threading
-import Util
 
 
 class Client:
@@ -84,23 +85,24 @@ class Client:
 				s.connect((self.ip, self.port))
 				lock.acquire()
 				s.send(b'put')
-				if s.recv(1) == b'r':
-					s.send(struct.pack('li', table_id, jpg_or_png)) # 0-jpg 1-png
-					if s.recv(2) == b't0':
-						lock.release()
-						file_size = os.stat(image_path).st_size
-						lock.acquire()
-						s.send(struct.pack('Q100s', file_size, os.path.basename(image_path).encode()))
-						if s.recv(1) == b'r':
-							lock.release()
-							with open(image_path, 'rb') as fr:
-								while True:
-									data = fr.read(1024)
-									if not data:
-										break
-									lock.acquire()
-									s.send(data)
-									lock.release()
+				_r = s.recv(1)
+				lock.release()
+				if _r == b'r':
+					info = {
+						'size': os.stat(image_path).st_size,
+						'name': os.path.basename(image_path),
+						'table_id': table_id,
+						'mode': jpg_or_png
+					}
+					head_info = json.dumps(info)
+					head_info_len = struct.pack('i', len(head_info))
+					s.send(head_info_len)
+					s.sendall(head_info)
+					if s.recv(1) == b'r':
+						with open(image_path, 'rb') as fr:
+							data = fr.read()
+							s.sendall(data)
+					lock.release()
 				s.shutdown(2)
 				s.close()
 				del s

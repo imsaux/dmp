@@ -29,7 +29,7 @@ mutex = Lock()
 
 
 class UI_thread(Thread):
-	def __init__(self, mode, args, objs):
+	def __init__(self, mode, args, objs=None):
 		Thread.__init__(self)
 		self.mode = mode
 		self.args = args

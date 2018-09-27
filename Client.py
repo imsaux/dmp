@@ -27,37 +27,38 @@ class Client:
 				s.connect((self.ip, self.port))
 				lock.acquire()
 				s.send(b'get')
-				if s.recv(1) == b'r':
+				_r = s.recv(1)
+				lock.release()
+				if _r == b'r':
+					lock.acquire()
 					s.send(struct.pack('li', table_id, jpg_or_png)) # 0-jpg 1-png
 					if s.recv(2) == b't0':
 						s.send(b't0')
-						file_size, file_name = struct.unpack('Q100s', s.recv(1024))
 						lock.release()
+						file_size, file_name = struct.unpack('Q100s', s.recv(1024))
 						file_name = file_name.split(b'\x00')[0].decode()
 						lock.acquire()
 						s.send(b'r')
 						lock.release()
 						_new_file_path = os.path.join(save_path, file_name)
-						with open(_new_file_path, 'wb') as fw:
+						lock.acquire()
+						fw = open(_new_file_path, 'wb')
+						try:
+							data = b''
 							while True:
-								if file_size > 1024:
-									lock.acquire()
-									data = s.recv(1024)
-									lock.release()
-									fw.write(data)
-								else:
-									diff = 1024 - file_size
-									lock.acquire()
-									data = s.recv(diff)
-									lock.release()
-									fw.write(data)
+								_d = s.recv(1024)
+								if not _d:
 									break
-								file_size -= 1024
-				lock.acquire()
+								data += _d
+							fw.write(data)
+						except Exception as e:
+							Util.LOG.error(repr(e))
+						finally:
+							fw.close()
+							lock.release()
 				s.shutdown(2)
 				s.close()
 				del s
-				lock.release()
 				break
 			except Exception as e:
 				Util.LOG.error(repr(e))
@@ -67,6 +68,8 @@ class Client:
 					save_path,
 					str(jpg_or_png)))
 				i += 1
+				if lock.locked():
+					lock.release()
 				lock.acquire()
 				s.shutdown(2)
 				s.close()
@@ -88,20 +91,23 @@ class Client:
 				_r = s.recv(1)
 				lock.release()
 				if _r == b'r':
+					_file_name = os.path.basename(image_path)
+					_file_size = os.stat(image_path).st_size
 					info = {
-						'size': os.stat(image_path).st_size,
-						'name': os.path.basename(image_path),
+						'size': _file_size,
+						'name': _file_name,
 						'table_id': table_id,
 						'mode': jpg_or_png
 					}
 					head_info = json.dumps(info)
-					head_info_len = struct.pack('i', len(head_info))
-					s.send(head_info_len)
-					s.sendall(head_info)
+					lock.acquire()
+					s.send(struct.pack('i', len(head_info)))
+					s.send(head_info.encode())
 					if s.recv(1) == b'r':
-						with open(image_path, 'rb') as fr:
-							data = fr.read()
-							s.sendall(data)
+						fo = open(image_path, 'rb')
+						filedata = fo.read()
+						s.sendall(filedata)
+						fo.close()
 					lock.release()
 				s.shutdown(2)
 				s.close()
@@ -111,6 +117,8 @@ class Client:
 				Util.LOG.error(repr(e))
 				Util.LOG.debug('Client.put_data（%s）-> %s, %s, %s' % (str(self.thread.ident), str(table_id), image_path, str(jpg_or_png)))
 				i += 1
+				if lock.locked():
+					lock.release()
 				lock.acquire()
 				s.shutdown(2)
 				s.close()

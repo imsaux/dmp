@@ -4,19 +4,14 @@ import Util
 import wx
 import wx.dataview as dv
 import wx.aui as aui
-import os
-import os.path
 import ImageView
 import QueryView
 import DataView
 import SettingView
 import StatisticsView
-import concurrent.futures
 from six import BytesIO
-import Client
 import copy
 import random
-import inspect
 
 
 ID_Image_view = wx.NewId()

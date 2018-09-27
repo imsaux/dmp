@@ -23,56 +23,59 @@ class QueryView(scrolled.ScrolledPanel):
 			self.samples_amount = 0
 		else:
 			self.samples_amount = -1
+		self.load()
+
+	def load(self):
 		checklist = []
-		self.controls = dict()
+
 		box_image_title = wx.StaticBox(self, -1, "图片")
 		box_image = wx.StaticBoxSizer(box_image_title, wx.VERTICAL)
 		grid_image = wx.FlexGridSizer(cols=3)
-		self.image_ctrls = []
-		for item in query_items.keys():
-			if query_items[item]['field'] in ['id', 'path']:
-				pass # 不出现在查询视图中
-			else:
-				if query_items[item]['field'] == 'date':
+		self.image_ctrls = list()
+		for item in self.query_items.keys():
+			if self.query_items[item]['field'] not in ['id', 'path']:
+				if self.query_items[item]['field'] == 'date':
 					self.ctr_date_from = PopupControl.PopControl(self, 1, checklist, self, -1, pos=(30, 30))
 					self.ctr_date_to = PopupControl.PopControl(self, 1, checklist, self, -1, pos=(30, 30))
-					st = wx.StaticText( self, -1, ' ≤ 采集日期 ≤ ')
+					st = wx.StaticText(self, -1, ' ≤ 采集日期 ≤ ')
 					self.image_ctrls.append((self.ctr_date_from, st, self.ctr_date_to))
 
-					self.ctr_time_from = masked.Ctrl( self, -1, "",
-									autoformat='24HRTIMEHHMMSS',
-									demo=True,
-									name='24HRTIME')
+					self.ctr_time_from = masked.Ctrl(self, -1, "",
+					                                 autoformat='24HRTIMEHHMMSS',
+					                                 demo=True,
+					                                 name='24HRTIME')
 					self.ctr_time_from.SetValue('00:00:00')
-					self.ctr_time_to = masked.Ctrl( self, -1, "",
-									autoformat='24HRTIMEHHMMSS',
-									demo=True,
-									name='24HRTIME')
+					self.ctr_time_to = masked.Ctrl(self, -1, "",
+					                               autoformat='24HRTIMEHHMMSS',
+					                               demo=True,
+					                               name='24HRTIME')
 					self.ctr_time_to.SetValue('23:59:59')
-					st = wx.StaticText( self, -1, ' ≤ 采集时间 ≤ ')
+					st = wx.StaticText(self, -1, ' ≤ 采集时间 ≤ ')
 					self.image_ctrls.append((self.ctr_time_from, st, self.ctr_time_to))
 
-				elif query_items[item]['field'] in ['speed', 'scale', 'width', 'height']: # 范围
+				elif self.query_items[item]['field'] in ['speed', 'scale', 'width', 'height']:  # 范围
 					ctrl1 = wx.TextCtrl(self, -1, "", size=(120, -1))
-					setattr(self, 'ctr' + '_' + query_items[item]['field'] + '_from', ctrl1)
+					setattr(self, 'ctr' + '_' + self.query_items[item]['field'] + '_from', ctrl1)
 					st = wx.StaticText(self, -1, ' ≤ ' + item + ' ≤ ')
 					ctrl2 = wx.TextCtrl(self, -1, "", size=(120, -1))
-					setattr(self, 'ctr' + '_' + query_items[item]['field'] + '_to', ctrl2)
+					setattr(self, 'ctr' + '_' + self.query_items[item]['field'] + '_to', ctrl2)
 					self.image_ctrls.append((ctrl1, st, ctrl2))
 
-				elif query_items[item]['field'] in ['quality', 'line', 'side', 'site', 'weather', 'set', 'state']:
+				elif self.query_items[item]['field'] in ['quality', 'line', 'side', 'site', 'weather', 'set', 'state']:
 					st = wx.StaticText(self, -1, item)
-					_sql = 'SELECT dmp.image.%s FROM dmp.image group by dmp.image.%s' %(query_items[item]['field'], query_items[item]['field'])
+					_sql = 'SELECT dmp.image.%s FROM dmp.image group by dmp.image.%s' % (
+						self.query_items[item]['field'],
+						self.query_items[item]['field'])
 					_data = Util.execute_sql(_sql)
 					_list = [str(x[0]) for x in _data]
 					ctrl = PopupControl.PopControl(self, 2, _list, self, -1, pos=(30, 30))
-					setattr(self, 'ctr'+'_'+query_items[item]['field']+'_select', ctrl)
+					setattr(self, 'ctr' + '_' + self.query_items[item]['field'] + '_select', ctrl)
 					self.image_ctrls.append((st, None, ctrl))
 
-
-				elif query_items[item]['field'] in ['code']:
+				elif self.query_items[item]['field'] in ['code']:
 					dct = dict()
-					_sql = 'SELECT distinct %s FROM dmp.image group by %s' %(query_items[item]['field'], query_items[item]['field'])
+					_sql = 'SELECT distinct %s FROM dmp.image group by %s' % (
+						self.query_items[item]['field'], self.query_items[item]['field'])
 					_data = Util.execute_sql(_sql)
 					_list = [str(x[0]) for x in _data]
 					for c in _list:
@@ -111,17 +114,17 @@ class QueryView(scrolled.ScrolledPanel):
 					lk = list(set(lk))
 					st = wx.StaticText(self, -1, '车属性')
 					ctrl = PopupControl.PopControl(self, 2, list(dct.keys()), self, -1, pos=(30, 30))
-					setattr(self, 'ctr' + '_' + query_items[item]['field'] + '_property', ctrl)
+					setattr(self, 'ctr' + '_' + self.query_items[item]['field'] + '_property', ctrl)
 					self.image_ctrls.append((st, None, ctrl))
 
 					st = wx.StaticText(self, -1, '车种')
 					ctrl = PopupControl.PopControl(self, 2, lt, self, -1, pos=(30, 30))
-					setattr(self, 'ctr' + '_' + query_items[item]['field'] + '_type', ctrl)
+					setattr(self, 'ctr' + '_' + self.query_items[item]['field'] + '_type', ctrl)
 					self.image_ctrls.append((st, None, ctrl))
 
 					st = wx.StaticText(self, -1, '车型')
 					ctrl = PopupControl.PopControl(self, 2, lk, self, -1, pos=(30, 30))
-					setattr(self, 'ctr' + '_' + query_items[item]['field'] + '_kind', ctrl)
+					setattr(self, 'ctr' + '_' + self.query_items[item]['field'] + '_kind', ctrl)
 					self.image_ctrls.append((st, None, ctrl))
 				else:
 					checklist.append(item)
@@ -132,17 +135,16 @@ class QueryView(scrolled.ScrolledPanel):
 			self.image_ctrls.append((st, None, ctrl))
 
 		for item1, item2, item3 in self.image_ctrls:
-			grid_image.Add(item1, 0, wx.ALIGN_CENTRE|wx.LEFT|wx.RIGHT|wx.TOP, 5)
+			grid_image.Add(item1, 0, wx.ALIGN_CENTRE | wx.LEFT | wx.RIGHT | wx.TOP, 5)
 			if item2 is None:
-				grid_image.Add(wx.StaticText(self, -1, ''), 0, wx.ALIGN_CENTRE|wx.LEFT|wx.RIGHT|wx.TOP, 5 )
+				grid_image.Add(wx.StaticText(self, -1, ''), 0, wx.ALIGN_CENTRE | wx.LEFT | wx.RIGHT | wx.TOP, 5)
 			else:
-				grid_image.Add(item2, 0, wx.ALIGN_CENTRE|wx.LEFT|wx.RIGHT|wx.TOP, 5 )
-			grid_image.Add(item3, 0, wx.ALIGN_CENTRE|wx.LEFT|wx.RIGHT|wx.TOP, 5 )
+				grid_image.Add(item2, 0, wx.ALIGN_CENTRE | wx.LEFT | wx.RIGHT | wx.TOP, 5)
+			grid_image.Add(item3, 0, wx.ALIGN_CENTRE | wx.LEFT | wx.RIGHT | wx.TOP, 5)
 
-		box_image.Add(grid_image, 0, wx.LEFT|wx.ALL, 5)
-		self.ALL_SIZER.Add(box_image, 0, wx.LEFT|wx.ALL, 5)
+		box_image.Add(grid_image, 0, wx.LEFT | wx.ALL, 5)
+		self.ALL_SIZER.Add(box_image, 0, wx.LEFT | wx.ALL, 5)
 
-		
 		box_label_title = wx.StaticBox(self, -1, "标签")
 		box_label = wx.StaticBoxSizer(box_label_title, wx.VERTICAL)
 		grid_label = wx.FlexGridSizer(cols=3)
@@ -181,17 +183,17 @@ class QueryView(scrolled.ScrolledPanel):
 			ctrl = wx.TextCtrl(self, -1)
 			setattr(self, 'ctr_samples_input', ctrl)
 			self.label_ctrls.append((st, None, ctrl))
-		
-		for item1, item2, item3 in self.label_ctrls:
-			grid_label.Add(item1, 0, wx.ALIGN_CENTRE|wx.LEFT|wx.RIGHT|wx.TOP, 5)
-			if item2 is None:
-				grid_label.Add(wx.StaticText(self, -1, ''), 0, wx.ALIGN_CENTRE|wx.LEFT|wx.RIGHT|wx.TOP, 5 )
-			else:
-				grid_label.Add(item2, 0, wx.ALIGN_CENTRE|wx.LEFT|wx.RIGHT|wx.TOP, 5 )
-			grid_label.Add(item3, 0, wx.ALIGN_CENTRE|wx.LEFT|wx.RIGHT|wx.TOP, 5 )
 
-		box_label.Add(grid_label, 0, wx.LEFT|wx.ALL, 5)
-		self.ALL_SIZER.Add(box_label, 0, wx.LEFT|wx.ALL, 5)
+		for item1, item2, item3 in self.label_ctrls:
+			grid_label.Add(item1, 0, wx.ALIGN_CENTRE | wx.LEFT | wx.RIGHT | wx.TOP, 5)
+			if item2 is None:
+				grid_label.Add(wx.StaticText(self, -1, ''), 0, wx.ALIGN_CENTRE | wx.LEFT | wx.RIGHT | wx.TOP, 5)
+			else:
+				grid_label.Add(item2, 0, wx.ALIGN_CENTRE | wx.LEFT | wx.RIGHT | wx.TOP, 5)
+			grid_label.Add(item3, 0, wx.ALIGN_CENTRE | wx.LEFT | wx.RIGHT | wx.TOP, 5)
+
+		box_label.Add(grid_label, 0, wx.LEFT | wx.ALL, 5)
+		self.ALL_SIZER.Add(box_label, 0, wx.LEFT | wx.ALL, 5)
 		if not self.is_nagetive:
 			_line_sizer = wx.BoxSizer(wx.HORIZONTAL)
 			self.btn_query = wx.Button(self, -1, '检索')
@@ -205,11 +207,8 @@ class QueryView(scrolled.ScrolledPanel):
 			self.btn_query = wx.Button(self, -1, '确定')
 			self.btn_query.Bind(wx.EVT_BUTTON, self.on_query_click)
 			self.ALL_SIZER.Add(self.btn_query, 1, wx.ALIGN_CENTRE | wx.ALL, 5)
-
 		self.SetSizer(self.ALL_SIZER)
 		self.SetupScrolling()
-
-		Util.LOG.info('queryview已加载')
 
 
 	def on_clear_click(self, e):

@@ -29,11 +29,12 @@ mutex = Lock()
 
 
 class UI_thread(Thread):
-	def __init__(self, mode, args, objs=None):
+	def __init__(self, mode, args, p=None, objs=None):
 		Thread.__init__(self)
 		self.mode = mode
 		self.args = args
 		self.query_objs = objs
+		self.p = p
 		self.start()
 
 	def run(self):
@@ -41,6 +42,7 @@ class UI_thread(Thread):
 			self.to_import(self.args)
 		elif self.mode == 1:
 			self.to_export(self.args)
+		wx.CallAfter(pubsub.pub.sendMessage, 'over', msg='over')
 
 	def e_to_send(self, work):
 		c = Client.Client(Util.HOST, Util.PORT)
@@ -183,9 +185,10 @@ class DataView(wx.Panel):
 			self.set_data(self.data)
 		pubsub.pub.subscribe(self.update_export, 'export')
 		pubsub.pub.subscribe(self.update_import, 'import')
+		pubsub.pub.subscribe(self.over_evt_handler, 'over')
 
-		Util.LOG.info('dataview已加载')
-
+	def over_evt_handler(self, msg):
+		self.parent.reload()
 
 	def update_export(self, mode, msg):
 		self.info['export'][mode].append(msg)
@@ -201,6 +204,7 @@ class DataView(wx.Panel):
 	def update_import(self, msg):
 		self.info['import']['send'].append(msg)
 		self.parent.statusbar.SetStatusText('导入操作 ' + '已传输：' + str(len(self.info['import']['send'])), 0)
+
 
 	def bind_event(self):
 		self.dvc.Bind(dv.EVT_DATAVIEW_ITEM_ACTIVATED, self.on_item_dbclick)
@@ -301,7 +305,7 @@ class DataView(wx.Panel):
 						'_recv': 0
 					}
 				}
-				UI_thread(self.mode, (self.gen_import_works(work_ids),))
+				UI_thread(self.mode, (self.gen_import_works(work_ids),),p=self.parent)
 				# btn = evt.GetEventObject()
 				# btn.Disable()
 		else:
@@ -543,6 +547,41 @@ class DataView(wx.Panel):
 									if 'D' not in self.import_data[_key].keys():
 										self.import_data[_key]['D'] = list()
 									self.import_data[_key]['D'] = _label_data
+					else:
+						for f in _file:
+							if os.path.splitext(f)[1].upper() == '.JPG':
+								_key = os.path.join(_root, f)
+								if _key not in self.import_data.keys():
+									self.import_data[_key] = dict()
+								img_path = os.path.join(_root, f)
+								img = PIL.Image.open(img_path)
+
+								data = [
+									index,
+									os.path.join(_root, f),
+									self.get_type_by_kind(r['car_kind']),
+									Util._datetime_format(mode=2),
+									'L',
+									'202.202.202.2',
+									'杨柳青',
+									img.width,
+									img.height,
+									900,
+									float(r['image_scale']),
+									0,
+									0,
+									'晴',
+									0,
+									0,
+									0,
+									0,
+									'未标',
+									'训练',
+									'原图'
+								]
+								show_data.append(data)
+								index += 1
+
 					self.set_data(show_data)
 			self.mode = ID_MODE_IMPORT
 
@@ -667,7 +706,6 @@ class DataView(wx.Panel):
 		else:
 			return
 
-	# icbc 
 	def gen_import_works(self, ids):
 		work = list()
 		for _id in ids:
@@ -724,7 +762,7 @@ class DataView(wx.Panel):
 						'_recv': 0
 					}
 				}
-				UI_thread(self.mode, (self.gen_export_works(ids, r),), self.parent.last_query_objects)
+				UI_thread(self.mode, (self.gen_export_works(ids, r),), p=self.parent,objs=self.parent.last_query_objects)
 			# self.parent.to_export(self.gen_export_works(ids, r))
 			# btn = evt.GetEventObject()
 			# btn.Disable()

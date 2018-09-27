@@ -330,6 +330,15 @@ class MainFrame(wx.Frame):
 		self.image_panel = ImageView.ImageView(self, file_path=file_path)
 		return self.image_panel
 
+	def reload(self):
+		_w = self._mgr.GetManagedWindow()
+		_sql = 'SELECT dmp.image.site FROM dmp.image group by dmp.image.site'
+		_data = Util.execute_sql(_sql)
+		_list = [str(x[0]) for x in _data]
+		_w.query_panel.ctr_site_select.GetChildren()[2].GetChildren()[0].GetChildren()[0].GetChildren()[0].Items = _list
+		_w.Refresh()
+
+
 	def CreateQueryCtrl(self):
 		self.query_panel = QueryView.QueryView(self, self.db_column_info)
 		return self.query_panel

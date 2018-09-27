@@ -83,9 +83,6 @@ class Import_SetDir(wx.adv.WizardPage):
         self.tc_site = wx.TextCtrl(self, -1, size=(200, -1))
         self.sizer.Add(self.tc_site, 0, wx.ALL, 5)
 
-        # todo 站点列表
-
-
     def on_button(self, event):
         dd_image = wx.DirDialog(self, "请选择文件夹",
                                 style=wx.DD_DEFAULT_STYLE
@@ -118,7 +115,7 @@ class Import_SetLabel(wx.adv.WizardPage):
         self.sizer = makePageTitle(self, title)
         self.rb_label = wx.RadioBox(
             self, -1, "标签类型", wx.DefaultPosition, wx.DefaultSize,
-            ['分类标签', '目标检测标签', '分割标签'], 2, wx.RA_SPECIFY_COLS
+            ['无', '分类标签', '目标检测标签', '分割标签'], 2, wx.RA_SPECIFY_COLS
         )
         self.sizer.Add(self.rb_label)
         line_sizer_g = wx.BoxSizer(wx.HORIZONTAL)

@@ -126,6 +126,10 @@ class Import_SetLabel(wx.adv.WizardPage):
         line_sizer_g.Add(btn_g, 0, wx.ALL, 1)
         self.sizer.Add(wx.StaticText(self, -1, "路径 ", (20, 10)), 0, wx.ALL, 1)
         self.sizer.Add(line_sizer_g, 0, wx.ALL, 1)
+        self.sizer.Add(wx.StaticText(self, -1, "站点 ", (20, 10)), 0, wx.ALL, 1)
+        self.tc_site = wx.TextCtrl(self, -1, size=(200, -1))
+        self.sizer.Add(self.tc_site, 0, wx.ALL, 5)
+
 
     def on_button_label(self, event):
         dd_image = wx.DirDialog(self, "请选择文件夹",
@@ -284,6 +288,7 @@ def show_import_wizard(parent):
                 result['image_scale'] = page4.tc_scale.GetValue()
                 result['car_kind'] = page4.rb_kind.GetStringSelection()
                 result['label_obj'] = page4.ch_object.GetStringSelection()
+                result['site'] = page3.tc_site.GetValue()
             return result
         else:
             pass

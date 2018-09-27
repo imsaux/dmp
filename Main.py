@@ -331,12 +331,15 @@ class MainFrame(wx.Frame):
 		return self.image_panel
 
 	def reload(self):
-		_w = self._mgr.GetManagedWindow()
-		_sql = 'SELECT dmp.image.site FROM dmp.image group by dmp.image.site'
-		_data = Util.execute_sql(_sql)
-		_list = [str(x[0]) for x in _data]
-		_w.query_panel.ctr_site_select.GetChildren()[2].GetChildren()[0].GetChildren()[0].GetChildren()[0].Items = _list
-		_w.Refresh()
+		try:
+			_w = self._mgr.GetManagedWindow()
+			_sql = 'SELECT dmp.image.site FROM dmp.image group by dmp.image.site'
+			_data = Util.execute_sql(_sql)
+			_list = [str(x[0]) for x in _data]
+			_w.query_panel.ctr_site_select.GetChildren()[2].GetChildren()[0].GetChildren()[0].GetChildren()[0].Items = _list
+			_w.Refresh()
+		except Exception as e:
+			Util.LOG.error(repr(e))
 
 
 	def CreateQueryCtrl(self):

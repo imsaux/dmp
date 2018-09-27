@@ -555,15 +555,31 @@ class DataView(wx.Panel):
 									self.import_data[_key] = dict()
 								img_path = os.path.join(_root, f)
 								img = PIL.Image.open(img_path)
-
+								_tmp = f.split('_')
+								if len(_tmp) == 5:
+									_code = _tmp[0] if _tmp[0] != '#####' else '#'*20
+									if len(_code) < 20:
+										_code += '0'*(20-len(_code))
+									_line = _tmp[1]
+									_date = _tmp[2]
+									try:
+										d = datetime.datetime.strptime(_date, '%Y%m%d%H%M%S')
+									except Exception as e:
+										_date = Util._datetime_format(mode=2)
+									_side = _tmp[3][0]
+								else:
+									_code = self.get_type_by_kind(r['car_kind'])
+									_line = '202.202.202.2'
+									_date = Util._datetime_format(mode=2)
+									_side = 'L'
 								data = [
 									index,
 									os.path.join(_root, f),
-									self.get_type_by_kind(r['car_kind']),
-									Util._datetime_format(mode=2),
-									'L',
-									'202.202.202.2',
-									'杨柳青',
+									_code,
+									_date,
+									_side,
+									_line,
+									r['site'],
 									img.width,
 									img.height,
 									900,

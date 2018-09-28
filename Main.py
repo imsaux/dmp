@@ -19,7 +19,6 @@ ID_Data_view = wx.NewId()
 ID_Query_view = wx.NewId()
 ID_Statistics_view = wx.NewId()
 ID_Setting_view = wx.NewId()
-ID_About = wx.NewId()
 ID_EXIT = wx.NewId()
 ID_About_view = wx.NewId()
 
@@ -40,13 +39,15 @@ o\xda\x84pB2\x1f\x81Fa\x8c\x9c\x08\x04Z{\xcf\xa72\xbcv\xfa\xc5\x08 \x80r\x80\
 	return icon
 
 
-
 class MainFrame(wx.Frame):
-	def __init__(self, parent, id=-1, title="", pos=wx.DefaultPosition,
-	             size=wx.DefaultSize, style=wx.DEFAULT_FRAME_STYLE |
-	                                        wx.SUNKEN_BORDER |
-	                                        wx.CLIP_CHILDREN):
-
+	def __init__(
+			self,
+			parent,
+			id=-1,
+			title="",
+			pos=wx.DefaultPosition,
+			size=wx.DefaultSize,
+			style=wx.DEFAULT_FRAME_STYLE | wx.SUNKEN_BORDER | wx.CLIP_CHILDREN):
 		wx.Frame.__init__(self, parent, id, title, pos, size, style)
 		self._mgr = aui.AuiManager()
 		self._mgr.SetManagedWindow(self)
@@ -106,9 +107,6 @@ class MainFrame(wx.Frame):
 		# 事件绑定
 		self.bind_event()
 
-		Util.LOG.info('main已加载')
-
-
 	def set_mode(self, value):
 		self.data_view.mode = value
 
@@ -119,8 +117,17 @@ class MainFrame(wx.Frame):
 		# self.last_query_objects = set(query_objects.split(','))
 		self.last_query_objects = set(query_objects)
 
-	def db_do_sql(self, sql, args=None, need_commit=False, update=False, need_last=False, need_clear=False,
-	              need_random=-1, for_dataview=False, data_mode=0):
+	def db_do_sql(
+			self,
+			sql,
+			args=None,
+			need_commit=False,
+			update=False,
+			need_last=False,
+			need_clear=False,
+			need_random=-1,
+			for_dataview=False,
+			data_mode=0):
 		data = Util.execute_sql(sql, args=args, need_commit=need_commit)
 		if len(data) == 0:
 			return []
@@ -193,31 +200,10 @@ class MainFrame(wx.Frame):
 		self.statistics_panel.set_data(self.last_data, need_clear=True)
 
 	def get_table_info(self):
-		# _sql = 'select * from information_schema.columns where table_schema = "' + self.db_name + '" and table_name = "image" order by ordinal_postion'
-		_sql = 'select column_name, data_type, column_comment from information_schema.columns where table_schema=%s and table_name="image" order by ordinal_position'
+		_sql = 'select column_name, data_type, column_comment from information_schema.columns where table_schema=%s ' \
+		       'and table_name="image" order by ordinal_position'
 		data = Util.execute_sql(_sql, args=(Util.DB_NAME,))
 		self.db_column_info = {k[2]: {'type': k[1], 'field': k[0]} for k in data}
-
-	def load_other_ui(self):
-		# todo 创建界面布局方案
-		all_panes = self._mgr.GetAllPanes()
-
-		for ii in range(len(all_panes)):
-			if not all_panes[ii].IsToolbar():
-				all_panes[ii].Hide()
-
-		self._mgr.GetPane("tb1").Hide()
-		self._mgr.GetPane("tb5").Hide()
-		self._mgr.GetPane("test8").Show().Left().Layer(0).Row(0).Position(0)
-		self._mgr.GetPane("test10").Show().Bottom().Layer(0).Row(0).Position(0)
-		self._mgr.GetPane("html_content").Show()
-
-		perspective_other = self._mgr.SavePerspective()
-		self._mgr.LoadPerspective(perspective_other)
-
-	def load_default_ui(self):
-		self.on_show_data_view()
-		self.on_show_query_view()
 
 	def CreateSetting(self):
 		self.setting_view = SettingView.SettingView(self)
@@ -276,7 +262,7 @@ class MainFrame(wx.Frame):
 		self.Bind(wx.EVT_MENU, self.on_show_statistics_view, id=ID_Statistics_view)
 		self.Bind(wx.EVT_MENU, self.on_show_setting_view, id=ID_Setting_view)
 		self.Bind(wx.EVT_MENU, self.OnExit, id=wx.ID_EXIT)
-		self.Bind(wx.EVT_MENU, self.OnAbout, id=ID_About)
+		self.Bind(wx.EVT_MENU, self.OnAbout, id=ID_About_view)
 
 		self.Bind(wx.dataview.EVT_DATAVIEW_ITEM_CONTEXT_MENU, self.on_popmenu)
 
@@ -302,19 +288,18 @@ class MainFrame(wx.Frame):
 		self.Destroy()
 
 	def OnAbout(self, event):
-		msg = "wx.aui Demo\n" + \
-		      "An advanced window management library for wxWidgets\n" + \
-		      "(c) Copyright 2005-2006, Kirix Corporation"
-		dlg = wx.MessageDialog(self, msg, "About wx.aui Demo",
-		                       wx.OK | wx.ICON_INFORMATION)
+		msg = ''
+		dlg = wx.MessageDialog(
+			self,
+			msg,
+			"关于",
+			wx.OK | wx.ICON_INFORMATION
+		)
 		dlg.ShowModal()
 		dlg.Destroy()
 
 	def OnExit(self, event):
 		self.OnClose()
-
-	def DoUpdate(self):
-		self._mgr.Update()
 
 	def OnEraseBackground(self, event):
 		event.Skip()
@@ -350,30 +335,31 @@ class MainFrame(wx.Frame):
 		self.data_view = DataView.DataView(self)
 		return self.data_view
 
-	def CreateTreeCtrl(self):
-		self.tree = wx.TreeCtrl(self, -1, wx.Point(0, 0), wx.Size(160, 250),
-		                        wx.TR_DEFAULT_STYLE | wx.NO_BORDER)
-
-		root = self.tree.AddRoot("数据源")
-
-		imglist = wx.ImageList(16, 16, True, 2)
-		imglist.Add(wx.ArtProvider.GetBitmap(wx.ART_FOLDER, wx.ART_OTHER, wx.Size(16, 16)))
-		imglist.Add(wx.ArtProvider.GetBitmap(wx.ART_FOLDER, wx.ART_OTHER, wx.Size(16, 16)))
-		self.tree.AssignImageList(imglist)
-		self.tree_db = self.tree.AppendItem(root, "数据库", 0)
-		self.tree_server = self.tree.AppendItem(root, "服务器", 0)
-		self.tree_folder = self.tree.AppendItem(root, "文件夹", 0)
-
-		self.tree.Expand(root)
-
-		return self.tree
-
-
 if __name__ == '__main__':
-	_v = '预览版'
+	_v = 'v0.70 r' + Util._datetime_format(mode=2)
+	Util.LOG.info(_v)
 	app = wx.App()
 	w, h = wx.DisplaySize()
 	frame = MainFrame(None, wx.ID_ANY, "数据管理平台 %s" % (_v), size=(w, h))
 	frame.Show()
 	frame.Maximize()
 	app.MainLoop()
+
+
+
+	# def load_other_ui(self):
+	# 	all_panes = self._mgr.GetAllPanes()
+	#
+	# 	for ii in range(len(all_panes)):
+	# 		if not all_panes[ii].IsToolbar():
+	# 			all_panes[ii].Hide()
+	#
+	# 	self._mgr.GetPane("tb1").Hide()
+	# 	self._mgr.GetPane("tb5").Hide()
+	# 	self._mgr.GetPane("test8").Show().Left().Layer(0).Row(0).Position(0)
+	# 	self._mgr.GetPane("test10").Show().Bottom().Layer(0).Row(0).Position(0)
+	# 	self._mgr.GetPane("html_content").Show()
+	#
+	# 	perspective_other = self._mgr.SavePerspective()
+	# 	self._mgr.LoadPerspective(perspective_other)
+

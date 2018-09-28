@@ -73,10 +73,6 @@ class MyPopButton(wx.Control):
         wx.RendererNative.Get().DrawComboBoxDropButton(self, dc, self.GetClientRect(), flag)
 
 
-#---------------------------------------------------------------------------
-
-
-# Tried to use wxPopupWindow but the control misbehaves on MSW
 class MyPopupDialog(wx.Dialog):
     def __init__(self,parent,content = None):
         wx.Dialog.__init__(self,parent,-1,'', style = wx.BORDER_SIMPLE|wx.STAY_ON_TOP)
@@ -117,9 +113,6 @@ class MyPopupDialog(wx.Dialog):
         self.ctrl.FormatContent()
 
         self.Show()
-
-
-#---------------------------------------------------------------------------
 
 
 class MyPopupControl(wx.Control):

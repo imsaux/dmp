@@ -77,7 +77,6 @@ class ImageView(wx.Panel):
         self.to_show = wx.Bitmap(file_path)
         self.Refresh()
 
-
     def bind_event(self):
         self.Bind(wx.EVT_PAINT, self.on_paint)
         self.Bind(wx.EVT_SIZE, self.on_size)

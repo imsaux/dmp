@@ -237,9 +237,13 @@ class DataView(wx.Panel):
 			ids = [self.dvc.GetValue(r, 1) for r in range(self.dvc.ItemCount) if self.dvc.GetValue(r, 0)]
 			f = wx.Frame(None, -1, '添加补充素材')
 			f.SetSize((500, 400))
-			ar = Add_replenish.ReplenishAdd(f, objects=self.parent.last_query_objects, ids=ids,
-			                                statistics_view_obj=self.parent.statistics_panel, data_view_obj=self,
-			                                last_data=self._replenish_data)
+			ar = Add_replenish.ReplenishAdd(
+				f,
+				objects=self.parent.last_query_objects,
+				ids=ids,
+				statistics_view_obj=self.parent.statistics_panel,
+				data_view_obj=self,
+				last_data=self._replenish_data)
 			f.Show()
 
 	def on_item_dbclick(self, event):

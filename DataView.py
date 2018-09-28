@@ -56,7 +56,7 @@ class UI_thread(Thread):
 				for _data in work[2][_type]:
 					_get_path_sql = 'select dmp.r_image_label.id, dmp.r_image_label.data from dmp.r_image_label where dmp.r_image_label.image_id=%s and dmp.r_image_label.label_id=(select dmp.label.id from dmp.label where dmp.label.type=%s and dmp.label.name=%s)'
 					_result = Util.execute_sql(_get_path_sql, args=(work[1][0], _type, Util.label_object[_data[0]]))[0]
-					c.put_data(_result[1], _result[0], 1)
+					c.put_rdata(_result[1], _result[0], 1)
 		wx.CallAfter(pubsub.pub.sendMessage, 'import', msg=str(work[0]))
 		return work[1][0]
 
@@ -188,7 +188,10 @@ class DataView(wx.Panel):
 		pubsub.pub.subscribe(self.over_evt_handler, 'over')
 
 	def over_evt_handler(self, msg):
-		self.parent.reload()
+		try:
+			wx.CallLater(5000, self.parent.reload)
+		except Exception as e:
+			Util.LOG.error(repr(e))
 
 	def update_export(self, mode, msg):
 		self.info['export'][mode].append(msg)

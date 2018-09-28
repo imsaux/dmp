@@ -3,7 +3,7 @@
 block_cipher = None
 
 
-a = Analysis(['main.py'],
+a = Analysis(['Server.py'],
              pathex=['c:\\p363', 'C:\\Users\\sy\\PycharmProjects\\dmp'],
              binaries=[],
              datas=[('setting.json', '.'),],
@@ -21,16 +21,16 @@ exe = EXE(pyz,
           a.scripts,
           [],
           exclude_binaries=True,
-          name='TOEC_DataPlatform_Client',
+          name='TOEC_DataPlatform_Server',
           debug=False,
           bootloader_ignore_signals=False,
           strip=False,
           upx=True,
-          console=False )
+          console=True )
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,
                a.datas,
                strip=False,
-               upx=False,
-               name='TOEC_DataPlatform_Client')
+               upx=True,
+               name='TOEC_DataPlatform_Server')

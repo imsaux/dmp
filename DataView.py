@@ -651,7 +651,8 @@ class DataView(wx.Panel):
 		_get_labelid_sql = 'select dmp.label.id from dmp.label where dmp.label.type=%s and dmp.label.name=%s'
 		_insert_r_image_label_sql = 'insert into dmp.r_image_label (dmp.r_image_label.image_id, dmp.r_image_label.label_id, dmp.r_image_label.data) values (%s, %s, %s)'
 		mutex.acquire()
-		_image_id = Util.execute_sql(_get_imageid_sql, args=(data.replace('\\', '\\\\'),))
+		_tmp = data.replace('\\','\\\\')
+		_image_id = Util.execute_sql(_get_imageid_sql, args=(_tmp,))
 		mutex.release()
 		if len(self.import_data[data].keys()) == 0:
 			return
@@ -661,14 +662,14 @@ class DataView(wx.Panel):
 				_label_type = '目标检测'
 			elif lbl_type == 'C':
 				_label_type = '分类'
-			elif lbl_type == 'G':
+			elif lbl_type == 'S':
 				_label_type = '分割'
 
 			for obj in self.import_data[data][lbl_type]:
 				mutex.acquire()
 				_label_id = Util.execute_sql(_get_labelid_sql, args=(_label_type, Util.label_object[str(obj[0])]))
 				mutex.release()
-				if len(_label_id) == 0:
+				if len(_label_id) == 0 or len(_image_id) == 0:
 					continue
 				try:
 					mutex.acquire()

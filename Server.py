@@ -155,9 +155,3 @@ class DmpTCPRequestHandler(socketserver.BaseRequestHandler):
 
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
-
-
-with  ThreadedTCPServer((IP, PORT), DmpTCPRequestHandler) as serve:
-    serve.allow_reuse_address = True
-    serve.daemon_threads = True
-    serve.serve_forever()

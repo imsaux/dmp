@@ -768,8 +768,6 @@ class DataView(wx.Panel):
 			row = self.dvc.GetItemCount()
 			ids = [self.dvc.GetValue(r, 1) for r in range(row) if self.dvc.GetValue(r, 0)]
 			if r is not None and len(ids) > 0:
-				# for w in self.gen_export_works(ids, r):
-				# self.parent.process_work(self.parent.to_export, (self.gen_export_works(ids, r),))
 				self.info = {
 					'import': {
 						'send': [],

@@ -286,6 +286,7 @@ class MainFrame(wx.Frame):
 		self._mgr.UnInit()
 		del self._mgr
 		self.Destroy()
+		Util.LOG.info('正常退出！')
 
 	def OnAbout(self, event):
 		msg = ''
@@ -321,7 +322,10 @@ class MainFrame(wx.Frame):
 			_sql = 'SELECT dmp.image.site FROM dmp.image group by dmp.image.site'
 			_data = Util.execute_sql(_sql)
 			_list = [str(x[0]) for x in _data]
-			_w.query_panel.ctr_site_select.GetChildren()[2].GetChildren()[0].GetChildren()[0].GetChildren()[0].Items = _list
+			if len(_w.query_panel.ctr_site_select.GetChildren()[2].GetChildren()[0].GetChildren()[0].GetChildren()) > 0:
+				_w.query_panel.ctr_site_select.GetChildren()[2].GetChildren()[0].GetChildren()[0].GetChildren()[0].Items = _list
+			else:
+				pass
 			_w.Refresh()
 		except Exception as e:
 			Util.LOG.error(repr(e))

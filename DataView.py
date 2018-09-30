@@ -44,6 +44,122 @@ class UI_thread(Thread):
 			self.to_export(self.args)
 		wx.CallAfter(pubsub.pub.sendMessage, 'over', msg='over')
 
+	def to_export(self, works):  # 导出流程
+		_results = list()
+		if len(works[0]) > 0:
+			_need_cutting = works[0][0][1]
+			_need_zoom = works[0][0][2]
+			_export_path = works[0][0][4]
+
+			Util.LOG.info('导出 -> 开始传输...')
+			with concurrent.futures.ThreadPoolExecutor() as executor:  # 传输
+				fs = {executor.submit(self.e_to_recv, w): w for w in works[0]}
+				for future in concurrent.futures.wait(fs, return_when=concurrent.futures.ALL_COMPLETED):
+					try:
+						_results.append(future.result())
+					except Exception as e:
+						Util.LOG.error(repr(e))
+						Util.LOG.debug(repr(works))
+			_results.clear()
+			Util.LOG.info('导出 -> 传输完成!')
+
+			if _need_cutting:
+				Util.LOG.info('导出 -> 准备裁剪...')
+				_tmp = list()
+				for item in works[0]:
+					_data = Util.execute_sql('select dmp.image.path from dmp.image where dmp.image.id=%s', args=(item[0]))
+					_path = os.path.join(Util.ORIGIN_DIR, os.path.basename(_data[0][0]))
+					_tmp.append((_path, item[3]))
+				Util.LOG.info('导出 -> 开始裁剪...')
+				with concurrent.futures.ThreadPoolExecutor() as executor:  # 裁剪
+					fs = {executor.submit(self.e_to_cutting, w): w for w in _tmp}
+					for future in concurrent.futures.wait(fs, return_when=concurrent.futures.ALL_COMPLETED):
+						try:
+							_results.append(future.result())
+						except Exception as e:
+							Util.LOG.error(repr(e))
+							Util.LOG.debug(repr(works))
+				_results.clear()
+
+			if _need_zoom:
+				Util.LOG.info('导出 -> 准备缩放...')
+				_scale = works[0][0][3]
+				Util.LOG.info('导出 -> 缩放中...')
+				with concurrent.futures.ThreadPoolExecutor() as executor:  # 缩放
+					fs = executor.submit(self.e_to_zoom, _scale)
+					for future in concurrent.futures.wait(fs, return_when=concurrent.futures.ALL_COMPLETED):
+						try:
+							_results.append(future.result())
+						except Exception as e:
+							Util.LOG.error(repr(e))
+							Util.LOG.debug(repr(works))
+				_results.clear()
+
+			Util.LOG.info('导出 -> 准备图像处理中...')
+			_tmp = [x for x in works[0] if len(x[5]) > 0]
+
+			Util.LOG.info('导出 -> 处理中...')
+			with concurrent.futures.ThreadPoolExecutor() as executor:  # 处理
+				fs = {executor.submit(self.e_to_process, w): w for w in _tmp}
+				for future in concurrent.futures.wait(fs, return_when=concurrent.futures.ALL_COMPLETED):
+					try:
+						_results.append(future.result())
+					except Exception as e:
+						Util.LOG.error(repr(e))
+						Util.LOG.debug(repr(works))
+			_results.clear()
+
+	def e_to_recv(self, work):
+		c = Client.Client(Util.HOST, Util.PORT)
+		c.get_data(work[0], Util.ORIGIN_DIR)
+		# c.get_data(work[0], work[4])
+		wx.CallAfter(pubsub.pub.sendMessage, 'export', mode='recv', msg=str(work[0]))
+		return work[0]
+
+	def e_to_cutting(self, work):  # 裁剪
+		# work -> 图像地址
+		if isinstance(self.query_objs, set) and len(self.query_objs) > 0:
+			_methods = []
+			for obj in [obj.split('-')[0] for obj in self.query_objs]:
+				if obj in Util.cutting_relation['object'].keys():
+					_methods.append(Util.cutting_relation['object'][obj])
+			_tmp = []
+			[_tmp.extend(x) for x in _methods]
+			_methods = set(_tmp)
+			if len(_methods) == 1:  # 进行裁剪
+				# for r, d, f in os.walk(Util.CUTTING_DIR):
+				# 	for _file in f:
+				# 		os.remove(_file)
+				# 	break
+				_all_ = inspect.getmembers(Cutting)
+				_cls = [i[1] for i in _all_ if i[0] == list(_methods)[0]][0]
+				_t = _cls(work[0], Util.CUTTING_DIR,work[1])
+				_t.cut()
+				wx.CallAfter(pubsub.pub.sendMessage, 'export', mode='cutting', msg=str(work))
+			return work, True
+		return work, False
+
+	def e_to_zoom(self, work):  # 缩放
+		for _r, _d, _f in os.walk(Util.CUTTING_DIR):
+			pass
+
+		wx.CallAfter(pubsub.pub.sendMessage, 'export', mode='zoom', msg=str(work[0]))
+		return work
+
+	def e_to_process(self, work):  # 图像处理
+		wx.CallAfter(pubsub.pub.sendMessage, 'export', mode='process', msg=str(work[0]))
+		return work
+
+	def to_import(self, works):  # 导入流程
+		work_result = list()
+		with concurrent.futures.ThreadPoolExecutor() as executor:
+			fs = {executor.submit(self.e_to_send, w): w for w in works[0]}
+			for future in concurrent.futures.as_completed(fs):
+				try:
+					work_result.append(future.result())
+				except Exception as e:
+					Util.LOG.error(repr(e))
+
 	def e_to_send(self, work):
 		c = Client.Client(Util.HOST, Util.PORT)
 		c.put_data(work[0], work[1][0])
@@ -59,73 +175,6 @@ class UI_thread(Thread):
 					c.put_rdata(_result[1], _result[0], 1)
 		wx.CallAfter(pubsub.pub.sendMessage, 'import', msg=str(work[0]))
 		return work[1][0]
-
-	def to_import(self, works):  # 导入流程
-		work_result = list()
-		with concurrent.futures.ThreadPoolExecutor() as executor:
-			fs = {executor.submit(self.e_to_send, w): w for w in works[0]}
-			for future in concurrent.futures.as_completed(fs):
-				try:
-					work_result.append(future.result())
-				except Exception as e:
-					Util.LOG.error(repr(e))
-
-	def e_to_recv(self, work):
-		c = Client.Client(Util.HOST, Util.PORT)
-		c.get_data(work[0], work[4])
-		wx.CallAfter(pubsub.pub.sendMessage, 'export', mode='recv', msg=str(work[0]))
-		return work[0]
-
-	def to_export(self, works):  # 导出流程
-		work_result = list()
-
-		# 传输
-		with concurrent.futures.ThreadPoolExecutor() as executor:
-			fs = {executor.submit(self.e_to_recv, w): w for w in works[0]}
-			for future in concurrent.futures.wait(fs, return_when=concurrent.futures.ALL_COMPLETED):
-				try:
-					work_result.append(future.result())
-				except Exception as e:
-					Util.LOG.error(repr(e))
-					Util.LOG.debug(repr(works))
-
-		# with concurrent.futures.ThreadPoolExecutor() as executor:
-		# 	fs = {executor.submit(self.e_to_cutting, w): w for w in works}
-		# 	for future in concurrent.futures.wait(fs, return_when=concurrent.futures.ALL_COMPLETED):
-		# 		try:
-		# 			work_result.append(future.result())
-		# 		except Exception as e:
-		# 			Util.LOG.error(repr(e))
-		# 			Util.LOG.debug(repr(works))
-
-	def e_to_process(self, work):  # 图像处理
-		return work
-
-	def e_to_zoom(self, work):  # 缩放
-		return work
-
-	def e_to_cutting(self, work):  # 裁剪
-		# work -> 图像地址
-		if isinstance(self.query_objs, set) and len(self.query_objs) > 0:
-			_methods = []
-			for obj in [obj.split('-')[0] for obj in self.query_objs]:
-				if obj in Util.cutting_relation['object'].keys():
-					_methods.append(Util.cutting_relation['object'][obj])
-			_tmp = []
-			[_tmp.extend(x) for x in _methods]
-			_methods = set(_tmp)
-			if len(_methods) == 1:  # 进行裁剪
-				for r, d, f in os.walk(Util.CUTTING_DIR):
-					for _file in f:
-						os.remove(_file)
-					break
-				_all_ = inspect.getmembers(Cutting)
-				_cls = [i[1] for i in _all_ if i[0] == list(_methods)[0]][0]
-				_t = _cls(work, Util.CUTTING_DIR)
-				_t.cut()
-				wx.CallAfter(pubsub.pub.sendMessage, 'export', mode='cutting', msg=str(work))
-			return work, True
-		return work, False
 
 
 class DataView(wx.Panel):
@@ -202,6 +251,8 @@ class DataView(wx.Panel):
 			comment = '已裁剪：'
 		elif mode == 'process':
 			comment = '已处理：'
+		elif mode == 'zoom':
+			comment = '已缩放：'
 		self.parent.statusbar.SetStatusText('导出操作 ' + comment + str(len(self.info['export'][mode])), 1)
 
 	def update_import(self, msg):

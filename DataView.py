@@ -127,13 +127,12 @@ class UI_thread(Thread):
 			[_tmp.extend(x) for x in _methods]
 			_methods = set(_tmp)
 			if len(_methods) == 1:  # 进行裁剪
-				# for r, d, f in os.walk(Util.CUTTING_DIR):
-				# 	for _file in f:
-				# 		os.remove(_file)
-				# 	break
 				_all_ = inspect.getmembers(Cutting)
 				_cls = [i[1] for i in _all_ if i[0] == list(_methods)[0]][0]
-				_t = _cls(work[0], Util.CUTTING_DIR,work[1])
+				_tmp_dir = os.path.join(Util.CUTTING_DIR, repr(_cls))
+				if not os.path.exists(_tmp_dir):
+					os.makedirs(_tmp_dir)
+				_t = _cls(work[0], _tmp_dir, work[1])
 				_t.cut()
 				wx.CallAfter(pubsub.pub.sendMessage, 'export', mode='cutting', msg=str(work))
 			return work, True

@@ -24,7 +24,7 @@ class StatisticsView(wx.Panel):
 		if self.data is not None:
 			self.fill_data()
 		else:
-			self.dvc.AppendItem(('合计', 0, 0, 0))
+			self.dvc.AppendItem(('合计', '0', '0', '0'))
 		self.Sizer = wx.BoxSizer(wx.VERTICAL)
 		self.Sizer.Add(self.dvc, 1, wx.EXPAND)
 
@@ -93,13 +93,13 @@ class StatisticsView(wx.Panel):
 		self.dvc.DeleteAllItems()
 		for _key in d.keys():
 			try:
-				self.dvc.AppendItem((_key, d[_key][0], d[_key][1], d[_key][2]))
+				self.dvc.AppendItem((_key, str(d[_key][0]), str(d[_key][1]), str(d[_key][2])))
 			except Exception as e:
 				pass
 		_sum_origin = sum([x[0] for x in d.values()]) if len(d) > 0 else 0
 		_sum_negative = sum_negative
 		_sum_replenish = sum([x[2] for x in d.values()]) if len(d) > 0 else 0
-		self.dvc.AppendItem(('合计', _sum_origin, _sum_negative, _sum_replenish))
+		self.dvc.AppendItem(('合计', str(_sum_origin), str(_sum_negative), str(_sum_replenish)))
 
 	def sum_result(self, data, mode=0):
 		_sum_ = dict()

@@ -471,22 +471,35 @@ class S_Chain_Pipe_Cutting(BaseCutting):
 
 
 class C_Paulin_Cutting(BaseCutting):
-    def __init__(self, file_path, save_dir, scale):
+    def __init__(self, file_path, save_dir, scale, count=None, label=None):
         BaseCutting.__init__(self, file_path, save_dir, scale)
-
-    def cut(self, need_save=True):  # todo 未完成
-        self.width = 256
-        self.height = 256
         self.allow_vehicletype = ['C', 'N']
         self.allow_side = ['T', ]
+        self.width = 256
+        self.height = 256
+        self.x = 0
+        self.y = 0
+        self.label = label
+        self.count = count
+        if self.label is not None:
+            ##  (300, 200, 800, 1000)
+            self.x = self.label[0]
+            self.y = self.label[1]
 
+    def cut(self, need_save=True):
+        if self.count is None and self.label is not None:  # 只截标签区域
+            self.regions.append()
+        elif self.count is not None and isinstance(self.count, int) and self.label is not None:  # 截标签区域，并按指定数量及尺寸截取
+            pass
 
 class C_PdoorOpen_Cutting(BaseCutting):
-    def __init__(self, file_path, save_dir, scale):
+    def __init__(self, file_path, save_dir, scale, label=None):
         BaseCutting.__init__(self, file_path, save_dir, scale)
-
-    def cut(self, need_save=True):  # todo 未完成
-        self.width = 250
-        self.height = 500
         self.allow_vehicletype = ['P', ]
         self.allow_side = ['L', 'R']
+        self.width = 250
+        self.height = 500
+        self.label = label
+
+    def cut(self, need_save=True):
+        pass
